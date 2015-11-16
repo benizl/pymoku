@@ -1,7 +1,7 @@
 
 import select, socket, struct
 import logging, time, threading
-from Queue import Queue, Full, Empty
+from Queue import Queue, Empty
 from pymoku import Moku, FrameTimeout
 
 import _instrument
@@ -9,6 +9,31 @@ import _instrument
 from pymoku import NotDeployedException
 
 log = logging.getLogger(__name__)
+
+class FrameQueue(Queue):
+	def put(self, item, block=True, timeout=None):
+		""" Behaves the same way as default except that instead of raising Full, it
+		    just pushes the item on to the deque anyway, throwing away old frames."""
+		self.not_full.acquire()
+		try:
+			if self.maxsize > 0 and block:
+				if timeout is None:
+					while self._qsize() == self.maxsize:
+						self.not_full.wait()
+				elif timeout < 0:
+					raise ValueError("'timeout' must be a non-negative number")
+				else:
+					endtime = _time() + timeout
+					while self._qsize() == self.maxsize:
+						remaining = endtime - _time()
+						if remaining <= 0.0:
+							break
+						self.not_full.wait(remaining)
+			self._put(item)
+			self.unfinished_tasks += 1
+			self.not_empty.notify()
+		finally:
+			self.not_full.release()
 
 class DataFrame(object):
 	def __init__(self):
@@ -64,21 +89,21 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 	def __init__(self):
 		super(FrameBasedInstrument, self).__init__()
 		self._buflen = 1
-		self._queue = Queue(maxsize=self._buflen)
+		self._queue = FrameQueue(maxsize=self._buflen)
 		self._hb_forced = False
 
 	def flush(self):
 		with self._queue.mutex:
-		    self._queue.queue.clear()
+			self._queue.queue.clear()
 
 	def set_buffer_length(self, buflen):
 		self._buflen = buflen
-		self._queue = Queue(maxsize=buflen)
+		self._queue = FrameQueue(maxsize=buflen)
 
 	def get_buffer_length(self):
 		return self._buflen
 
-	def get_frame(self, timeout=0.0, wait=True):
+	def get_frame(self, timeout=None, wait=True):
 		try:
 			endtime = time.time() + timeout
 			while True:
@@ -162,10 +187,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 					fr.add_packet(d)
 
 					if fr.complete:
-						try:
-							self._queue.put_nowait(fr)
-						except Full:
-							pass #drop frames if full.
+						self._queue.put_nowait(fr)
 						fr = DataFrame()
 		finally:
 			fs.close()

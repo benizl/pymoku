@@ -83,7 +83,11 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 			endtime = time.time() + timeout
 			while True:
 				frame = self._queue.get(block=True, timeout=timeout)
-				if not wait or frame.stateid == self._stateid:
+				# Should really just wait for the new stateid to propagte through, but
+				# at the moment we don't support stateid and stateid_alt being different;
+				# i.e. we can't rerender already aquired data. Until we fix this, wait
+				# for a trigger to propagate through so we don't at least render garbage
+				if not wait or frame.trigstate == self._stateid:
 					return frame
 				elif time.time() > endtime:
 					raise FrameTimeout()
@@ -161,7 +165,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 						try:
 							self._queue.put_nowait(fr)
 						except Full:
-							pass #drop frames if full
+							pass #drop frames if full.
 						fr = DataFrame()
 		finally:
 			fs.close()

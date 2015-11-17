@@ -58,7 +58,7 @@ SG_MODSOURCE_ADC	= 1
 SG_MODSOURCE_DAC	= 2
 
 _SG_FREQSCALE		= 1e9 / 2**48
-_SG_PHASESCALE		= math.pi / 2**32
+_SG_PHASESCALE		= 2*math.pi / 2**32
 _SG_AMPSCALE		= 4.0 / 2**16
 
 class SignalGenerator(MokuInstrument):
@@ -75,7 +75,7 @@ class SignalGenerator(MokuInstrument):
 _siggen_reg_hdl = [
 	('out1_enable',		REG_SG_WAVEFORMS,	lambda s, old: (old & ~1) | int(s) if int(s) in [0, 1] else None,
 											lambda rval: rval & 1),
-	('out2_enable',		REG_SG_WAVEFORMS,	lambda s, old: (old & ~2) | int(s) if int(s) in [0, 1] else None,
+	('out2_enable',		REG_SG_WAVEFORMS,	lambda s, old: (old & ~2) | int(s) << 1 if int(s) in [0, 1] else None,
 											lambda rval: rval & 2 >> 1),
 	('out1_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x70) | s if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE] else None,
 											lambda rval: rval & 0x70 >> 4),

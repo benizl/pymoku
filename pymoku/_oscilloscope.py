@@ -5,6 +5,7 @@ import logging
 from _instrument import *
 import _instrument
 import _frame_instrument
+import _siggen
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ _OSC_BUFLEN			= 2**14
 _OSC_SCREEN_WIDTH	= 1024
 _OSC_FPS			= 10
 
-class Oscilloscope(_frame_instrument.FrameBasedInstrument):
+class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator):
 	def __init__(self):
 		super(Oscilloscope, self).__init__()
 		self.id = 1

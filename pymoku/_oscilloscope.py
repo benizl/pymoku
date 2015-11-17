@@ -7,6 +7,10 @@ import _instrument
 import _frame_instrument
 import _siggen
 
+# Annoying that import * doesn't pick up function defs??
+_sgn = _instrument._sgn
+_usgn = _instrument._usgn
+
 log = logging.getLogger(__name__)
 
 REG_OSC_OUTSEL		= 65
@@ -164,7 +168,7 @@ _osc_reg_hdl = [
 											lambda rval: rval & 0x1000 >> 12),
 	('hysteresis',		REG_OSC_TRIGCTL,	lambda s, old: (old & ~0xFFFF0000) | s << 16 if 0 <= s < 2**16 else None,
 											lambda rval: rval & 0xFFFF0000 >> 16),
-	('trigger_level',	REG_OSC_TRIGLVL,	lambda s, old: s if -2**31 <= s < 2**31 else None,
+	('trigger_level',	REG_OSC_TRIGLVL,	lambda s, old: _sgn(s, 32),
 											lambda rval: rval),
 	('loopback_mode',	REG_OSC_ACTL,		lambda m, old: (old & ~0x01) | m if m in [_OSC_LB_CLIP, _OSC_LB_ROUND] else None,
 											lambda rval: rval & 0x01),

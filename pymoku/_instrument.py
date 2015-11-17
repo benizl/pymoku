@@ -94,6 +94,23 @@ def _attach_register_handlers(handler_list, cls):
 			m = MethodType(p, None, cls)
 			cls._accessor_dict["set_" + name] = m
 
+def _usgn(i, width):
+	""" Return i as an unsigned of given width, raising exceptions for out of bounds """
+	if 0 <= i <= 2**width:
+		return int(i)
+
+	raise ValueOutOfRangeException()
+
+def _sgn(i, width):
+	""" Return the unsigned that, when interpretted with given width, represents
+	    the signed value i """
+	if i < -2**width or 2**width - 1 < i:
+		raise ValueOutOfRangeException()
+
+	if i >= 0:
+		return int(i)
+
+	return int(2**width + i)
 
 class MokuInstrument(object):
 	_accessor_dict = {}

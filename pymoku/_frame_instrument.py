@@ -36,17 +36,42 @@ class FrameQueue(Queue):
 			self.not_full.release()
 
 class DataFrame(object):
+	"""
+	.. mysterious undocumented magic.
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.ch1
+		:annotation: = [CH1_DATA]
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.ch1
+		:annotation: = [CH2_DATA]
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.frameid
+		:annotation: = n
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.waveformid
+		:annotation: = n
+	"""
 	def __init__(self):
 		self.complete = False
 		self.slices = [False] * 6
+
+		#: Channel 1 data array. Present whether or not the channel is enabled, but the contents
+		#: are undefined in the latter case.
 		self.ch1 = []
+
+		#: Channel 2 data array.
 		self.ch2 = []
+
 		self.stateid = None
 		self.trigstate = None
-		self.frameid = None
-		self.waveformid = None
+
+		#: Frame number. Increments monotonically but wraps at 16-bits.
+		self.frameid = 0
+
+		#: Incremented once per trigger event. Wraps at 32-bits.
+		self.waveformid = 0
+
 		self.flags = None
-		self.trig_offset = None
 
 	def add_packet(self, packet):
 		hdr_len = 13
@@ -86,6 +111,7 @@ class DataFrame(object):
 
 # Revisit: Should this be a Mixin? Are there more instrument classifications of this type, recording ability, for example?
 class FrameBasedInstrument(_instrument.MokuInstrument):
+	""" FrameWaffle """
 	def __init__(self):
 		super(FrameBasedInstrument, self).__init__()
 		self._buflen = 1
@@ -93,17 +119,23 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self._hb_forced = False
 
 	def flush(self):
+		""" Clear the Frame Buffer.
+		This is normally not required as one can simply wait for the correctly-generated frames to propagate through
+		using the appropriate arguments to :any:`get_frame`."""
 		with self._queue.mutex:
 			self._queue.queue.clear()
 
 	def set_buffer_length(self, buflen):
+		""" Set the internal frame buffer length."""
 		self._buflen = buflen
 		self._queue = FrameQueue(maxsize=buflen)
 
 	def get_buffer_length(self):
+		""" Return the current length of the internal frame buffer """
 		return self._buflen
 
 	def get_frame(self, timeout=None, wait=True):
+		""" Get a :any:`DataFrame` from the internal frame buffer"""
 		try:
 			endtime = time.time() + timeout
 			while True:
@@ -120,20 +152,28 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 			raise FrameTimeout()
 
 	def datalogger_start(self, duration=0):
+		""" Start recording data with the current settings.
+		It is up to the user to ensure that the current aquisition rate is sufficiently slow to not loose samples"""
 		if self._moku is None: raise NotDeployedException()
 		# TODO: rest of the options, handle errors
 		self._moku._stream_start(end=duration)
 
 	def datalogger_stop(self):
+		""" Stop a recording session previously started with :py:func:`datalogger_start`"""
 		if self._moku is None: raise NotDeployedException()
 		# TODO: Handle errors
 		self._moku._stream_stop()
 
 	def datalogger_status(self):
+		""" Return the status of the most recent recording session to be started.
+		This is still valid after the stream has stopped, in which case the status will reflect that it's safe
+		to start a new session"""
 		if self._moku is None: raise NotDeployedException()
 		return self._moku._stream_status()[0]
 
 	def datalogger_transferred(self):
+		""" Return the number of samples recorded in the most recent session.
+		This is valid both for running sessions and one that has been completed."""
 		if self._moku is None: raise NotDeployedException()
 		return self._moku._stream_status()[1]
 

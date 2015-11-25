@@ -1,2 +1,3 @@
 pymoku.egg-info
 *.pyc
+doc/_build

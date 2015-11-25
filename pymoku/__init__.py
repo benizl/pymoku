@@ -4,20 +4,30 @@ from finders import BonjourFinder
 
 log = logging.getLogger(__name__)
 
-class MokuException(Exception): pass
-class MokuNotFound(MokuException): pass
-class NetworkError(MokuException): pass
-class DeployException(MokuException): pass
-class StreamException(MokuException): pass
-class InvalidOperationException(MokuException): pass
-class ValueOutOfRangeException(MokuException): pass
-class NotDeployedException(MokuException): pass
-class FrameTimeout(MokuException): pass
+class MokuException(Exception):	"""Base class for other Exceptions""";	pass
+class MokuNotFound(MokuException): """Can't find Moku. Raised from discovery factory functions."""; pass
+class NetworkError(MokuException): """Network connection to Moku failed"""; pass
+class DeployException(MokuException): """Couldn't start instrument. Moku may not be licenced to use that instrument"""; pass
+class StreamException(MokuException): """Data logging was interrupted or failed"""; pass
+class InvalidOperationException(MokuException): """Can't perform that operation at this time"""; pass
+class ValueOutOfRangeException(MokuException): """Invalid value for this operation"""; pass
+class NotDeployedException(MokuException): """Tried to perform an action on an Instrument before it was deployed to a Moku"""; pass
+class FrameTimeout(MokuException): """No new :any:`DataFrame` arrived within the given timeout"""; pass
 
 class Moku(object):
+	"""
+	Core class representing a connection to a physical Moku:Lab unit.
+
+	This must always be created first. Once a :any:`Moku` object exists, it can be queried for running instruments
+	or new instruments deployed to the device.
+	"""
 	PORT = 27182
 
 	def __init__(self, ip_addr):
+		"""Create a connection to the Moku:Lab unit at the given IP address
+
+		:type ip_addr: string
+		:param ip_addr: The address to connect to. This should be in IPv4 dotted notation."""
 		self._ip = ip_addr
 		self._seq = 0
 		self._instrument = None
@@ -34,6 +44,13 @@ class Moku(object):
 
 	@staticmethod
 	def list_mokus():
+		""" Discovers all compatible Moku instances on the network.
+		This list can be interrogated to find the IP address of the target Moku:Lab hardware, suitable
+		to be passed to the :any:`Moku` constructor.
+
+		:rtype: [(ip, serial, name),...]
+		:return: List of tuples, one per Moku
+		"""
 		known_mokus = []
 		ips = BonjourFinder().find_all(timeout=0.5)
 
@@ -50,6 +67,13 @@ class Moku(object):
 
 	@staticmethod
 	def get_by_ip(ip_addr):
+		"""
+		Factory function, returns a :any:`Moku` instance with the given IP address.
+
+		This works in a similar way to instantiating the instance manually but will perform
+		version and compatibility checks first.
+
+		If none is found, raises :any:`MokuNotFound`"""
 		for ip, ser, name in Moku.list_mokus():
 			if ip == ip_addr:
 				return Moku(ip)
@@ -58,6 +82,10 @@ class Moku(object):
 
 	@staticmethod
 	def get_by_serial(serial):
+		"""
+		Factory function, returns a :any:`Moku` instance with the given Serial number.
+
+		If none is found, raises :any:`MokuNotFound`"""
 		for ip, ser, name in Moku.list_mokus():
 			if ser.lower() == serial.lower():
 				return Moku(ip)
@@ -66,6 +94,10 @@ class Moku(object):
 
 	@staticmethod
 	def get_by_name(name):
+		"""
+		Factory function, returns a :any:`Moku` instance with the given name.
+
+		If none is found, raises :any:`MokuNotFound`"""
 		for ip, ser, nm in Moku.list_mokus():
 			if name.lower() == nm.lower():
 				return Moku(ip)
@@ -287,21 +319,28 @@ class Moku(object):
 		return stat, bt
 
 	def get_serial(self):
+		""" :return: Serial number of connected Moku:Lab """
 		self.serial = self._get_property_single('device.serial')
 		return self.serial
 
 	def get_name(self):
+		""" :return: Name of connected Moku:Lab """
 		self.name = self._get_property_single('system.name')
 		return self.name
 
 	def set_name(self, name):
+		""" :param name: Set new name for the Moku:Lab. This can make it easier to discover the device if multiple Moku:Labs are on a network"""
 		self.name = self._set_property_single('system.name', name)
 
 	def get_led_colour(self):
+		""" :return: The colour of the under-Moku "UFO" ring lights"""
 		self.led = self._get_property_single('leds.ufo1')
 		return self.led
 
 	def set_led_colour(self, colour):
+		"""
+		:type colour: string
+		:param colour: New colour for the under-Moku "UFO" ring lights. Possible colours are listed by :any:`get_colour_list`"""
 		if self.led_colours is None:
 			self.get_colour_list()
 
@@ -314,14 +353,21 @@ class Moku(object):
 			('leds.ufo4', colour)])[0][1]
 
 	def get_colour_list(self):
+		"""
+		:return: Available colours for the under-Moku "UFO" ring lights"""
 		cols = self._get_property_section('colourtable')
 		self.led_colours = [ x.split('.')[1] for x in zip(*cols)[0] ]
 		return self.led_colours
 
 	def is_active(self):
+		""":return: True if the Moku currently is connected and has an instrument deployed and operating"""
 		return self._instrument is not None and self._instrument.is_active()
 
 	def attach_instrument(self, instrument):
+		"""
+		Attaches a :any:`MokuInstrument` subclass to the Moku, deploying and activating an instrument.
+
+		Either this function or :any:`discover_instrument` must be called before an instrument can be manipulated"""
 		self._instrument = instrument
 		self._instrument.attach_moku(self)
 		self._instrument.set_running(False)
@@ -331,11 +377,20 @@ class Moku(object):
 		self._instrument.set_running(True)
 
 	set_instrument = attach_instrument
+	""" alias for :any:`attach_instrument`"""
 
 	def get_instrument(self):
+		"""
+		:return:
+			Currently running instrument object. If the user has not deployed the instrument themselves,
+			then :any:`discover_instrument` must be called first."""
 		return self._instrument
 
 	def discover_instrument(self):
+		"""Query a Moku:Lab device to see what instrument, if any, is currently running.
+
+		If an instrument is found, return a new :any:`MokuInstrument` subclass representing that instrument, ready
+		to be controlled."""
 		import pymoku.instruments
 		i = int(self._get_property_single('system.instrument'))
 		instr = pymoku.instruments.id_table[i]
@@ -350,6 +405,9 @@ class Moku(object):
 		return running
 
 	def close(self):
+		"""Close connection to the Moku:Lab.
+
+		This should be called before any user script terminates."""
 		if self._instrument is not None:
 			self._instrument.set_running(False)
 

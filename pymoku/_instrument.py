@@ -52,6 +52,31 @@ RELAY_LOWG	= 4
 
 log = logging.getLogger(__name__)
 
+"""
+The following three functions provide some trickery, attaching getter and setter methods
+to the instrument class, allowing a user to manipulate attributes directly and have their
+values correctly packed in to, and extracted from, registers.
+
+Each instrument, including this top instrument, defines a list of tuples that declare which
+attributes live in which registers, and how to access them.  This list is then passed to
+:any:`_attach_register_handlers` which builds the method objects and attaches them to the
+class.
+
+The tuple is of the form
+
+(name, register, set-transform, get-transform)
+
+name: The name the attribute will have
+register: The register, or tuple of registers, the attribute will be packed to/from
+set-transform: User (natural) units to register. Function gets passed the old value of the
+	register so existing fields can be preserved. Usually written as a lambda in the list
+	definition. If *register* is a tuple, the old register values are a tuple and this function
+	must return a tuple of new register values in the same order. Should return None, or a tuple
+	of Nones, if the input value is out of range.
+get-transform: Register(s) to natural units. If *register* is a tuple, the sole argument to
+	this function will also be a tuple.
+"""
+
 def _get_meth(reg, get_xform, self):
 	# Return local if present. Support a single register or a tuple of registers
 	try:
@@ -79,6 +104,11 @@ def _set_meth(reg, set_xform, self, data):
 		self._localregs[reg] = new
 
 def _attach_register_handlers(handler_list, cls):
+	# This method could be simpler. Originally we wanted get/setter functions attached to
+	# the Class itself. Now that we've rewritten the __{get,set}item__ functions for this
+	# class and are storing in our own dict, we don't really need to pre-assemble the functions,
+	# we could just call _{get,set}_meth with the right values right from the __{get,set}item__
+	# functions.
 	for name, reg, setter, getter in handler_list:
 		if getter is not None:
 			p = partial(_get_meth, reg, getter)
@@ -113,6 +143,10 @@ def _sgn(i, width):
 	return int(2**width + i)
 
 class MokuInstrument(object):
+	"""Superclass for all Instruments that may be attached to a :any:`Moku` object.
+
+	Should never be instantiated directly; instead, instantiate the subclass of the instrument
+	you wish to run (e.g. :any:`Oscilloscope`, :any:`SignalGenerator`)"""
 	_accessor_dict = {}
 
 	def __init__(self):
@@ -152,6 +186,15 @@ class MokuInstrument(object):
 		self._moku = moku
 
 	def commit(self):
+		"""
+		Apply all modified settings. 
+		
+		.. note::
+
+		    This **must** be called after any *set_* or *synth_* function has been called, or control
+		    attributes have been directly set. This allows you to, for example, set multiple attributes
+		    controlling rendering or signal generation in separate calls but have them all take effect at once.
+		"""
 		if self._moku is None: raise NotDeployedException()
 		self._stateid = (self._stateid + 1) % 256 # Some statid docco says 8-bits, some 16.
 		self.state_id = self._stateid
@@ -193,7 +236,7 @@ _instr_reg_hdl = [
 	('framerate',		REG_FRATE,	lambda f, old: _usgn(f * 256.0 / 477.0, 8),
 									lambda rval: rval * 256.0 / 477.0),
 	# TODO: Assumes cubic
-	('render_deci',		REG_SCALE,	lambda x, old: _usgn(256 / int(x)) - 1, 8),
+	('render_deci',		REG_SCALE,	lambda x, old: _usgn(256 / int(x) - 1, 8),
 									lambda x: 256 / (1 + (x & 0xFFFF))),
 	('render_deci_alt',	REG_SCALE,	lambda x, old: _usgn((256 / x) - 1, 8) << 16,
 									lambda x: 256 / (1 + (int(x) >> 16))),

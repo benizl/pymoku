@@ -59,7 +59,30 @@ _OSC_SCREEN_WIDTH	= 1024
 _OSC_FPS			= 10
 
 class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator):
+	""" Oscilloscope instrument object. This should be instantiated and attached to a :any:`Moku` instance.
+
+	.. automethod:: pymoku.instruments.Oscilloscope.__init__
+
+	.. attribute:: hwver
+
+		Hardware Version
+
+	.. attribute:: hwserial
+
+		Hardware Serial Number
+
+	.. attribute:: framerate
+
+		Frame Rate, range 1 - 30.
+
+	.. attribute:: type
+		:annotation: = "oscilloscope"
+
+		Name of this instrument.
+
+	"""
 	def __init__(self):
+		"""Create a new Oscilloscope instrument, ready to be attached to a Moku."""
 		super(Oscilloscope, self).__init__()
 		self.id = 1
 		self.type = "oscilloscope"
@@ -102,6 +125,17 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		return math.ceil(-time_left * buffer_smps)
 
 	def set_timebase(self, t1, t2):
+		""" Set the left- and right-hand span for the time axis.
+		Units are seconds relative to the trigger point.
+
+		:type t1: float
+		:param t1:
+			Time, in seconds, from the trigger point to the left of screen. This may be negative (trigger on-screen)
+			or positive (trigger off the left of screen).
+
+		:type t2: float
+		:param t2: As *t1* but to the right of screen.
+		"""
 		self.render_mode = RDR_CUBIC #TODO: Support other
 		self.decimation_rate = self._optimal_decimation(t1, t2)
 		self.pretrigger = self._buffer_offset(t1, t2, self.decimation_rate)
@@ -113,14 +147,36 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.offset_alt = self.offset
 		self.commit()
 
-	def set_voltage_scale(self, v1, v2):
-		pass
+	def set_xmode(self, xmode):
+		"""
+		Set rendering mode for the horizontal axis.
+
+		:type xmode: *OSC_ROLL*, *OSC_SWEEP*, *OSC_PAUSE*
+		:param xmode:
+			Respectively; Roll Mode (scrolling), Sweep Mode (normal oscilloscope trace sweeping across the screen) or Paused (no updates)."""
+		self.x_mode = xmode
 
 	def set_precision_mode(self, state):
+		""" Change aquisition mode between downsampling and decimation.
+		Precision mode, a.k.a Decimation, samples at full rate and applies a low-pass filter to the data. This improves
+		precision. Normal mode works by direct downsampling, throwing away points it doesn't need.
+
+		:param state: Select Precision Mode
+		:type state: bool """
 		self.ain_mode = _OSC_AIN_DECI if state else _OSC_AIN_DDS
 		self.commit()
 
 	def set_trigger(self, source, edge, hysteresis=0, hf_reject=False, mode=OSC_TRIG_AUTO):
+		""" Sets trigger source and parameters.
+
+		:type source: OSC_TRIG_CH1, OSC_TRIG_CH2, OSC_TRIG_DA1, OSC_TRIG_DA2
+		:param source: Trigger Source. May be either ADC Channel or either DAC Channel, allowing one to trigger off a synthesised waveform.
+
+		:type edge: OSC_EDGE_RISING, OSC_EDGE_FALLING, OSC_EDGE_BOTH
+		:param edge: Which edge to trigger on.
+
+		:type hysteresis: float, volts
+		:param hysteresis: Hysteresis to apply around trigger point."""
 		self.trig_ch = source
 		self.trig_edge = edge
 		self.hysteresis = hysteresis
@@ -129,6 +185,19 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.commit()
 
 	def set_frontend(self, channel, fiftyr=False, atten=True, ac=False):
+		""" Configures gain, coupling and termination for each channel.
+
+		:type channel: int
+		:param channel: Channel to which the settings should be applied
+
+		:type fiftyr: bool
+		:param fiftyr: 50Ohm termination; default is 1MOhm.
+
+		:type atten: bool
+		:param atten: Turn on 10x attenuation. Changes the dynamic range between 1Vpp and 10Vpp.
+
+		:type ac: bool
+		:param ac: AC-couple; default DC. """
 		relays =  RELAY_LOWZ if fiftyr else 0
 		relays |= RELAY_LOWG if atten else 0
 		relays |= RELAY_DC if not ac else 0
@@ -141,6 +210,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.commit()
 
 	def set_defaults(self):
+		""" Reset the Oscilloscope to sane defaults. """
 		super(Oscilloscope, self).set_defaults()
 		#TODO this should reset ALL registers
 		self.framerate = _OSC_FPS

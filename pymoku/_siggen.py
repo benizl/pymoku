@@ -58,19 +58,125 @@ SG_MODSOURCE_ADC	= 1
 SG_MODSOURCE_DAC	= 2
 
 _SG_FREQSCALE		= 1e9 / 2**48
-_SG_PHASESCALE		= 2*math.pi / 2**32
+_SG_PHASESCALE		= 1.0 / 2**32
 _SG_AMPSCALE		= 4.0 / 2**16
 
 class SignalGenerator(MokuInstrument):
+	"""
+
+	.. automethod:: pymoku.instruments.SignalGenerator.__init__
+
+	.. attribute:: type
+		:annotation: = "signal_generator"
+
+		Name of this instrument.
+
+	"""
 	def __init__(self):
+		""" Create a new SignalGenerator instance, ready to be attached to a Moku."""
 		super(SignalGenerator, self).__init__()
 		self.id = 4
 		self.type = "signal_generator"
 
 	def set_defaults(self):
+		""" Set sane defaults.
+		Defaults are outputs off, amplitudes and frequencies zero."""
 		super(SignalGenerator, self).set_defaults()
 		self.out1_enable = False
 		self.out2_enable = False
+		self.out1_amplitude = 0
+		self.out2_amplitude = 0
+		self.out1_frequency = 0
+		self.out2_frequency = 0
+
+	def synth_sinewave(self, ch, amplitude, frequency, offset=0, clip=0):
+		""" Generate a Sine Wave with the given parameters on the given channel.
+
+		:type ch: int
+		:param ch: Channel on which to generate the wave
+
+		:type amplitude: float, volts
+		:param amplitude: Waveform peak-to-peak amplitude
+
+		:type frequency: float
+		:param frequency: Freqency of the wave
+
+		:type offset: float, volts
+		:param offset: DC offset applied to the waveform
+
+		:type clip: float, 0-1
+		:param clip: Fraction of the waveform to clip off top and bottom. Sine waves with high clipping ratios can be used to generate
+			high-quality, high-speed square waves where a normal square would suffer from edge jitter.  If the clipping ratio is non-zero,
+			the amplitude field refers to the size of the clipped output waveform."""
+		pass
+
+	def synth_squarewave(self, ch, amplitude, frequency, offset=0, duty=0.5, riserate=0, fallrate=0):
+		""" Generate a Square Wave with given parameters on the given channel.
+
+		:type ch: int
+		:param ch: Channel on which to generate the wave
+
+		:type amplitude: float, volts
+		:param amplitude: Waveform peak-to-peak amplitude
+
+		:type frequency: float
+		:param frequency: Freqency of the wave
+
+		:type offset: float, volts
+		:param offset: DC offset applied to the waveform
+
+		:type duty: float, 0-1
+		:param duty: Fractional duty cycle
+
+		:type riserate: float, 0-1
+		:param riserate: Fraction of a cycle taken for the waveform to rise
+
+		:type fallrate: float 0-1
+		:param fallrate: Fraction of a cycle taken for the waveform to fall"""
+		pass
+
+	def synth_rampwave(self, ch, amplitude, frequency, offset=0, symmetry=0.5):
+		""" Generate a Ramp with the given parameters on the given channel.
+
+		This is a wrapper around the Square Wave generator, using the *riserate* and *fallrate*
+		parameters to form the ramp.
+
+		:type ch: int
+		:param ch: Channel on which to generate the wave
+
+		:type amplitude: float, volts
+		:param amplitude: Waveform peak-to-peak amplitude
+
+		:type frequency: float
+		:param frequency: Freqency of the wave
+
+		:type offset: float, volts
+		:param offset: DC offset applied to the waveform
+
+		:type symmetry: float, 0-1
+		:param symmetry: Fraction of the cycle rising."""
+		pass
+
+	def synth_modulate(self, ch, type, source, depth, frequency=0):
+		"""
+		Set up modulation on an output channel.
+
+		:type ch: int
+		:param ch: Channel to modulate
+
+		:type type: SG_MOD_NONE, SG_MOD_AMPL, SG_MOD_FREQ, SG_MOD_PHASE
+		:param type:  Modulation type. Respectively Amplitude, Frequency and Phase modulation.
+
+		:type source: SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC
+		:param source: Modulation source. Respectively Internal Sinewave, Associated ADC Channel or Opposite DAC Channel.
+
+		:type depth: float 0-1
+		:param depth: Fractional modulation depth
+
+		:type frequency: float
+		:param frequency: Frequency of internally-generated sine wave modulation. This parameter is ignored if the source is set to ADC or DAC.
+		"""
+		pass
 
 _siggen_reg_hdl = [
 	('out1_enable',		REG_SG_WAVEFORMS,	lambda s, old: (old & ~1) | int(s) if int(s) in [0, 1] else None,

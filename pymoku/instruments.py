@@ -1,5 +1,6 @@
 import sys
 
+import _instrument
 import _oscilloscope
 import _siggen
 import _frame_instrument
@@ -11,6 +12,8 @@ import _frame_instrument
 _this_module = sys.modules[__name__]
 
 DataFrame = _frame_instrument.DataFrame
+
+MokuInstrument = _instrument.MokuInstrument
 
 Oscilloscope = _oscilloscope.Oscilloscope
 SignalGenerator = _siggen.SignalGenerator

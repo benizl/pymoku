@@ -1,8 +1,13 @@
+
+
 import socket, select, struct, logging
 
-from finders import BonjourFinder
-
 log = logging.getLogger(__name__)
+
+try:
+	from finders import BonjourFinder
+except (ImportError, OSError):
+	log.warning("Can't import the Bonjour libraries, I won't be able to automatically detect Mokus")
 
 class MokuException(Exception):	"""Base class for other Exceptions""";	pass
 class MokuNotFound(MokuException): """Can't find Moku. Raised from discovery factory functions."""; pass

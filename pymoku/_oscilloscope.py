@@ -221,8 +221,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.frame_length = _OSC_SCREEN_WIDTH
 
 		self.set_timebase(-0.25, 0.25)
-		self.trig_mode = OSC_TRIG_AUTO
-		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING)
+		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
 		self.set_frontend(1)
 		self.set_frontend(2)
 

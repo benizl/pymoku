@@ -72,6 +72,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		Hardware Serial Number
 
 	.. attribute:: framerate
+		:annotation: = 10
 
 		Frame Rate, range 1 - 30.
 
@@ -166,7 +167,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.ain_mode = _OSC_AIN_DECI if state else _OSC_AIN_DDS
 		self.commit()
 
-	def set_trigger(self, source, edge, hysteresis=0, hf_reject=False, mode=OSC_TRIG_AUTO):
+	def set_trigger(self, source, edge, level, hysteresis=0, hf_reject=False, mode=OSC_TRIG_AUTO):
 		""" Sets trigger source and parameters.
 
 		:type source: OSC_TRIG_CH1, OSC_TRIG_CH2, OSC_TRIG_DA1, OSC_TRIG_DA2
@@ -174,6 +175,9 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		:type edge: OSC_EDGE_RISING, OSC_EDGE_FALLING, OSC_EDGE_BOTH
 		:param edge: Which edge to trigger on.
+
+		:type level: float, volts
+		:param level: Trigger level
 
 		:type hysteresis: float, volts
 		:param hysteresis: Hysteresis to apply around trigger point."""

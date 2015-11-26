@@ -60,7 +60,7 @@ Example Usage
 		m.close()
 
 
--------------------
+
 The DataFrame Class
 -------------------
 
@@ -69,7 +69,7 @@ The DataFrame Class
 	.. Don't use :members: as it doesn't handle instance attributes well. Directives in the source code list required attributes directly.
 
 
-----------------------
+
 The Oscilloscope Class
 ----------------------
 

@@ -41,7 +41,7 @@ Example Usage
 	m.close()
 
 
--------------------------
+
 The SignalGenerator Class
 -------------------------
 

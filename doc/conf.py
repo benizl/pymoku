@@ -119,11 +119,12 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-	'github_user': 'benizl',
-	'github_repo': 'pymoku',
-	'github_banner': True,
-	'description': "Python control library for the Liquid Instruments Moku:Lab",
-	'page_width' : '60%'
+	'logo'			: 'logo.png',
+	'github_user'	: 'benizl',
+	'github_repo'	: 'pymoku',
+	'github_banner'	: True,
+	'description'	: "Python control library for the Liquid Instruments Moku:Lab",
+	'page_width'	: '60%'
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
@@ -138,7 +139,7 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+html_logo = '_static/logo.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32

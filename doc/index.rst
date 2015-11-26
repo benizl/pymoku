@@ -17,7 +17,8 @@ allowing the Moku:Lab to be scripted tightly in to your next experiment.
 For example usage, see the individual instrument pages or the **examples/** subdirectory
 of this project.
 
-Contents:
+Contents
+========
 
 .. toctree::
    :maxdepth: 2

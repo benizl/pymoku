@@ -8,6 +8,6 @@ setup(
 	author_email='ben.nizette@liquidinstruments.com',
 	packages=['pymoku',],
 	license='Commercial',
-	long_description=open('README').read(),
+	long_description=open('README.md').read(),
 )
 

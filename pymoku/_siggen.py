@@ -2,6 +2,8 @@
 import math
 import logging
 
+from pymoku import ValueOutOfRangeException
+
 from _instrument import *
 import _instrument
 import _frame_instrument
@@ -60,6 +62,7 @@ SG_MODSOURCE_DAC	= 2
 _SG_FREQSCALE		= 1e9 / 2**48
 _SG_PHASESCALE		= 1.0 / 2**32
 _SG_AMPSCALE		= 4.0 / 2**16
+_SG_DEPTHSCALE		= 1.0 / 2**15
 
 class SignalGenerator(MokuInstrument):
 	"""
@@ -70,6 +73,17 @@ class SignalGenerator(MokuInstrument):
 		:annotation: = "signal_generator"
 
 		Name of this instrument.
+
+	.. attribute:: out1_enable
+		:annotation: = False
+
+		Output 1 On or Off. Automatically turned on when *synth_* is called on this channel
+
+
+	.. attribute:: out2_enable
+		:annotation: = False
+
+		Output 2 On or Off. Automatically turned on when *synth_* is called on this channel
 
 	"""
 	def __init__(self):
@@ -108,7 +122,21 @@ class SignalGenerator(MokuInstrument):
 		:param clip: Fraction of the waveform to clip off top and bottom. Sine waves with high clipping ratios can be used to generate
 			high-quality, high-speed square waves where a normal square would suffer from edge jitter.  If the clipping ratio is non-zero,
 			the amplitude field refers to the size of the clipped output waveform."""
-		pass
+		if ch == 1:
+			self.out1_waveform = SG_WAVE_SINE
+			self.out1_enable = True
+			self.out1_amplitude = amplitude
+			self.out1_frequency = frequency
+			self.out1_offset = offset
+			# TODO: Clip
+		elif ch == 2:
+			self.out2_waveform = SG_WAVE_SINE
+			self.out2_enable = True
+			self.out2_amplitude = amplitude
+			self.out2_frequency = frequency
+			self.out2_offset = offset
+		else:
+			raise ValueOutOfRangeException("Invalid Channel")
 
 	def synth_squarewave(self, ch, amplitude, frequency, offset=0, duty=0.5, riserate=0, fallrate=0):
 		""" Generate a Square Wave with given parameters on the given channel.
@@ -133,7 +161,21 @@ class SignalGenerator(MokuInstrument):
 
 		:type fallrate: float 0-1
 		:param fallrate: Fraction of a cycle taken for the waveform to fall"""
-		pass
+		if ch == 1:
+			self.out1_waveform = SG_WAVE_SQUARE
+			self.out1_enable = True
+			self.out1_amplitude = amplitude
+			self.out1_frequency = frequency
+			self.out1_offset = offset
+			# TODO: Duty, rise, fall
+		elif ch == 2:
+			self.out2_waveform = SG_WAVE_SQUARE
+			self.out2_enable = True
+			self.out2_amplitude = amplitude
+			self.out2_frequency = frequency
+			self.out2_offset = offset
+		else:
+			raise ValueOutOfRangeException("Invalid Channel")
 
 	def synth_rampwave(self, ch, amplitude, frequency, offset=0, symmetry=0.5):
 		""" Generate a Ramp with the given parameters on the given channel.
@@ -155,7 +197,10 @@ class SignalGenerator(MokuInstrument):
 
 		:type symmetry: float, 0-1
 		:param symmetry: Fraction of the cycle rising."""
-		pass
+		self.synth_squarewave(ch, amplitude, frequency,
+			offset=offset, duty=symmetry,
+			riserate=amplitude / frequency / symmetry,
+			fallrate=amplitude / frequency / (1 - symmetry))
 
 	def synth_modulate(self, ch, type, source, depth, frequency=0):
 		"""
@@ -176,7 +221,11 @@ class SignalGenerator(MokuInstrument):
 		:type frequency: float
 		:param frequency: Frequency of internally-generated sine wave modulation. This parameter is ignored if the source is set to ADC or DAC.
 		"""
-		pass
+		if ch == 1:
+			self.out1_modulation = type
+			self.out1_modsource = source
+			self.mod1_frequency = frequency
+			self.mod1_amplitude = depth * self.out1_amplitude
 
 _siggen_reg_hdl = [
 	('out1_enable',		REG_SG_WAVEFORMS,	lambda s, old: (old & ~1) | int(s) if int(s) in [0, 1] else None,
@@ -239,10 +288,8 @@ _siggen_reg_hdl = [
 	('out2_fallrate',	(REG_SG_RFRATE2_H, REG_SG_FALLRATE2_L),
 											lambda r, old: (old[0] & 0x0000FFFF | (_usgn(r, 48) >> 32) << 16, _usgn(r, 48) & 0xFFFFFFFF),
 											lambda rval: rval[0] & 0xFFFF0000 << 16 | rval[1]),
-	('mod1_amplitude',	REG_SG_MODA1,		lambda a, old: _usgn(a / _SG_AMPSCALE, 15), lambda rval: rval),
-	('mod2_amplitude',	REG_SG_MODA2,		lambda a, old: _usgn(a / _SG_AMPSCALE, 15),	lambda rval: rval),
-	('dither',			REG_SG_MODSOURCE,	lambda d, old: old & ~1 | int(d) if int(d) in [0,1] else None,
-											lambda rval: rval & 1),
+	('mod1_amplitude',	REG_SG_MODA1,		lambda a, old: _usgn(a / _SG_DEPTHSCALE, 15), lambda rval: rval),
+	('mod2_amplitude',	REG_SG_MODA2,		lambda a, old: _usgn(a / _SG_DEPTHSCALE, 15),	lambda rval: rval),
 	('out1_modsource',	REG_SG_MODSOURCE,	lambda s, old: old & ~0x00000006 | s << 1 if s in [SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC] else None,
 											lambda rval: rval & 0x00000006 >> 1),
 	('out2_modsource',	REG_SG_MODSOURCE,	lambda s, old: old & 0x00000018 | s << 3 if s in [SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC] else None,

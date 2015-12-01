@@ -1,5 +1,5 @@
 
-import select, socket, struct
+import select, socket, struct, sys
 import logging, time, threading
 from Queue import Queue, Empty
 from pymoku import Moku, FrameTimeout
@@ -137,8 +137,9 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 	def get_frame(self, timeout=None, wait=True):
 		""" Get a :any:`DataFrame` from the internal frame buffer"""
 		try:
-			endtime = time.time() + timeout
-			while True:
+			# Dodgy hack, infinite timeout gets translated in to just an exceedingly long one
+			endtime = time.time() + (timeout or sys.maxint)
+			while self._running:
 				frame = self._queue.get(block=True, timeout=timeout)
 				# Should really just wait for the new stateid to propagte through, but
 				# at the moment we don't support stateid and stateid_alt being different;

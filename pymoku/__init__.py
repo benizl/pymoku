@@ -1,6 +1,7 @@
 
 
 import socket, select, struct, logging
+import zmq
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class Moku(object):
 	This must always be created first. Once a :any:`Moku` object exists, it can be queried for running instruments
 	or new instruments deployed to the device.
 	"""
-	PORT = 27182
+	PORT = 27184
 
 	def __init__(self, ip_addr):
 		"""Create a connection to the Moku:Lab unit at the given IP address
@@ -38,10 +39,9 @@ class Moku(object):
 		self._instrument = None
 		self._known_mokus = []
 
-		self._conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self._conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self._conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-		self._conn.connect((self._ip, Moku.PORT))
+		ctx = zmq.Context()
+		self._conn = ctx.socket(zmq.REQ)
+		self._conn.connect("tcp://%s:%d" % (self._ip, Moku.PORT))
 
 		self.name = None
 		self.led = None
@@ -115,7 +115,7 @@ class Moku(object):
 		packet_data = chr(0x47) + chr(0x00) + chr(len(commands)) + command_data
 
 		self._conn.send(packet_data)
-		ack = self._conn.recv(3 + 5 * len(commands))
+		ack = self._conn.recv()
 
 		if ord(ack[0]) != 0x47 or ord(ack[1]) != 0x00 or ord(ack[2]) != len(commands):
 			raise NetworkError()
@@ -128,7 +128,7 @@ class Moku(object):
 		packet_data = chr(0x47) + chr(0x00) + chr(len(commands)) + command_data
 
 		self._conn.send(packet_data)
-		ack = self._conn.recv(3)
+		ack = self._conn.recv()
 
 		if ord(ack[0]) != 0x47 or ord(ack[1]) != 0x00 or ord(ack[2]) != 0x00:
 			raise NetworkError()
@@ -139,7 +139,7 @@ class Moku(object):
 			DeployException("No Instrument Selected")
 
 		self._conn.send(chr(0x43) + chr(self._instrument.id) + chr(0x00))
-		ack = self._conn.recv(5)
+		ack = self._conn.recv()
 
 		if ord(ack[0]) != 0x43 or ord(ack[1]) != 0x00:
 			raise DeployException("Deploy Error %d" % ord(ack[1]))
@@ -163,7 +163,10 @@ class Moku(object):
 			pkt += chr(0) # No data for reads
 
 		self._conn.send(pkt)
-		hdr, seq, stat, nr = struct.unpack("<BBBB", self._conn.recv(4))
+		reply = self._conn.recv()
+
+		hdr, seq, stat, nr = struct.unpack("<BBBB", reply[:4])
+		reply = reply[4:]
 
 		if hdr != 0x46 or seq != self._seq:
 			raise NetworkError("Bad header %d or sequence %d/%d" %(hdr, seq, self._seq))
@@ -172,18 +175,18 @@ class Moku(object):
 
 		p, d = '', ''
 		for n in range(nr):
-			plen = self._conn.recv(1)
-			p = self._conn.recv(ord(plen))
-			dlen = self._conn.recv(1)
-			d = self._conn.recv(ord(dlen))
+			print reply, [hex(ord(x)) for x in reply]
+			plen = ord(reply[0]); reply = reply[1:]
+			p = reply[:plen]; reply = reply[plen:]
+			dlen = ord(reply[0]); reply = reply[1:]
+			d = reply[:dlen]; reply = reply[dlen:]
 
 			if stat == 0:
 				ret.append((p, d))
 			else:
 				break
 
-		# Throw away \r\n terminator
-		dummy = self._conn.recv(2)
+		# Reply should just contain the \r\n by this time.
 
 		if stat:
 			# An error will have exactly one property reply, the property that caused
@@ -203,7 +206,9 @@ class Moku(object):
 		pkt += chr(0) # No data for reads
 
 		self._conn.send(pkt)
-		hdr, seq, stat, nr = struct.unpack("<BBBB", self._conn.recv(4))
+		reply = self._conn.recv()
+		hdr, seq, stat, nr = struct.unpack("<BBBB", reply[:4])
+		reply = reply[4:]
 
 		if hdr != 0x46 or seq != self._seq:
 			raise NetworkError("Bad header %d or sequence %d/%d" %(hdr, seq, self._seq))
@@ -212,18 +217,15 @@ class Moku(object):
 
 		p, d = '',''
 		for n in range(nr):
-			plen = self._conn.recv(1)
-			p = self._conn.recv(ord(plen))
-			dlen = self._conn.recv(1)
-			d = self._conn.recv(ord(dlen))
+			plen = ord(reply[0]); reply = reply[1:]
+			p = reply[:plen]; reply = reply[plen:]
+			dlen = ord(reply[0]); reply = reply[1:]
+			d = reply[:dlen]; reply = reply[dlen:]
 
 			if stat == 0:
 				ret.append((p, d))
 			else:
 				break
-
-		# Throw away \r\n terminator
-		dummy = self._conn.recv(2)
 
 		if stat:
 			# An error will have exactly one property reply, the property that caused
@@ -250,7 +252,9 @@ class Moku(object):
 			pkt += d
 
 		self._conn.send(pkt)
-		hdr, seq, stat, nr = struct.unpack("<BBBB", self._conn.recv(4))
+		reply = self._conn.recv()
+		hdr, seq, stat, nr = struct.unpack("<BBBB", reply[:4])
+		reply = reply[4:]
 
 		if hdr != 0x46 or seq != self._seq:
 			raise NetworkError("Bad header %d or sequence %d/%d" %(hdr, seq, self._seq))
@@ -258,19 +262,16 @@ class Moku(object):
 		self._seq += 1
 
 		for n in range(nr):
-			plen = self._conn.recv(1)
-			p = self._conn.recv(ord(plen))
-			dlen = self._conn.recv(1)
-			d = self._conn.recv(ord(dlen))
+			plen = ord(reply[0]); reply = reply[1:]
+			p = reply[:plen]; reply = reply[plen:]
+			dlen = ord(reply[0]); reply = reply[1:]
+			d = reply[:dlen]; reply = reply[dlen:]
 
 			if stat == 0:
 				# Writes have the new value echoed back
 				ret.append((p, d))
 			else:
 				break
-
-		# Throw away \r\n terminator
-		dummy = self._conn.recv(2)
 
 		if stat:
 			# An error will have exactly one property reply, the property that caused
@@ -299,8 +300,9 @@ class Moku(object):
 		pkt += struct.pack("<iifB", start, end, scale, flags)
 
 		self._conn.send(pkt)
+		reply = self._conn.recv()
 
-		hdr, seq, ae, stat = struct.unpack("<BBBB", self._conn.recv(4))
+		hdr, seq, ae, stat = struct.unpack("<BBBB", reply[:4])
 
 		if stat not in [ 1, 2 ]:
 			raise StreamException("Stream start exception %d" % stat)
@@ -309,8 +311,9 @@ class Moku(object):
 	def _stream_stop(self):
 		pkt = struct.pack("<BBB", 0x53, 0, 2)
 		self._conn.send(pkt)
+		reply = self._conn.recv()
 
-		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", self._conn.recv(8))
+		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", reply[:8])
 
 		if stat != 0:
 			raise StreamException("Stream stop exception %d" % stat)
@@ -318,8 +321,9 @@ class Moku(object):
 	def _stream_status(self):
 		pkt = struct.pack("<BBB", 0x53, 0, 3)
 		self._conn.send(pkt)
+		reply = self._conn.recv()
 
-		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", self._conn.recv(8))
+		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", reply[:8])
 
 		return stat, bt
 

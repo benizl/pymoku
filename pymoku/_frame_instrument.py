@@ -228,6 +228,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 						fr = DataFrame()
 		finally:
 			skt.close()
+			ctx.destroy()
 
 	def _heartbeat_worker(self):
 		hs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

@@ -53,7 +53,7 @@ class DataFrame(object):
 	"""
 	def __init__(self):
 		self.complete = False
-		self.slices = [False] * 6
+		self.chs_valid = [False, False]
 
 		#: Channel 1 data array. Present whether or not the channel is enabled, but the contents
 		#: are undefined in the latter case.
@@ -75,16 +75,16 @@ class DataFrame(object):
 
 	def add_packet(self, packet):
 		hdr_len = 13
-		smpls = 342
+		smpls = 1026
 		d_len = smpls * 4
 		if len(packet) != hdr_len + d_len:
+			log.warning("Corrupt frame recevied")
 			return
 
 		data = struct.unpack('<BHBBBBBIB', packet[:hdr_len])
 		frameid = data[1]
 		instrid = data[2]
 		chan = (data[3] >> 4) & 0x0F
-		sliceid = data[3] & 0x0F
 
 		self.stateid = data[4]
 		self.trigstate = data[5]
@@ -93,21 +93,21 @@ class DataFrame(object):
 
 		if self.frameid != frameid:
 			self.frameid = frameid
-			self.slices = [False] * 6
+			self.chs_valid = [False, False]
 
 		dat = struct.unpack('<' + 'i' * smpls, packet[hdr_len:])
 		dat = [ x if x != -0x80000000 else None for x in dat ]
 
+		# For historical reasons the data length is 1026 while there are only 1024
+		# valid samples. Trim the fat.
 		if chan == 0:
-			self.slices[sliceid] = True
-			self.ch1[sliceid * d_len : (sliceid + 1) * d_len] = dat
-			self.ch1 = self.ch1[:1024]
+			self.chs_valid[0] = True
+			self.ch1 = dat[:1024]
 		else:
-			self.slices[sliceid + 3] = True
-			self.ch2[sliceid * d_len : (sliceid + 1) * d_len] = dat
-			self.ch2 = self.ch2[:1024]
+			self.chs_valid[1] = True
+			self.ch2 = dat[:1024]
 
-		self.complete = (self.slices == [True, True, True, True, True, True])
+		self.complete = all(self.chs_valid)
 
 # Revisit: Should this be a Mixin? Are there more instrument classifications of this type, recording ability, for example?
 class FrameBasedInstrument(_instrument.MokuInstrument):
@@ -208,30 +208,26 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 			log.exception("HB")
 
 	def _frame_worker(self):
-		import select
+		import zmq
 
-		fs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		fs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		fs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-		fs.bind(('0.0.0.0', Moku.PORT))
+		ctx = zmq.Context()
+		skt = ctx.socket(zmq.SUB)
+		skt.connect("tcp://%s:27185" % self._moku._ip)
+		skt.setsockopt_string(zmq.SUBSCRIBE, u'')
 
 		fr = DataFrame()
 
 		try:
 			while self._running:
-				if fs in select.select([fs], [], [], 1.0)[0]:
-					d, a = fs.recvfrom(4096)
-					if a[0] != self._moku._ip:
-						log.debug("Thowing away data from Moku %s", a[0])
-						continue
-
+				if skt in zmq.select([skt], [], [], 1.0)[0]:
+					d = skt.recv()
 					fr.add_packet(d)
 
 					if fr.complete:
 						self._queue.put_nowait(fr)
 						fr = DataFrame()
 		finally:
-			fs.close()
+			skt.close()
 
 	def _heartbeat_worker(self):
 		hs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

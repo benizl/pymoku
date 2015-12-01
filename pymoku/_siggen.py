@@ -61,6 +61,7 @@ SG_MODSOURCE_DAC	= 2
 
 _SG_FREQSCALE		= 1e9 / 2**48
 _SG_PHASESCALE		= 1.0 / 2**32
+_SG_RISESCALE		= 1.0 / 2**48
 _SG_AMPSCALE		= 4.0 / 2**16
 _SG_DEPTHSCALE		= 1.0 / 2**15
 
@@ -138,7 +139,7 @@ class SignalGenerator(MokuInstrument):
 		else:
 			raise ValueOutOfRangeException("Invalid Channel")
 
-	def synth_squarewave(self, ch, amplitude, frequency, offset=0, duty=0.5, riserate=0, fallrate=0):
+	def synth_squarewave(self, ch, amplitude, frequency, offset=0, duty=0.5, risetime=0, falltime=0):
 		""" Generate a Square Wave with given parameters on the given channel.
 
 		:type ch: int
@@ -156,24 +157,41 @@ class SignalGenerator(MokuInstrument):
 		:type duty: float, 0-1
 		:param duty: Fractional duty cycle
 
-		:type riserate: float, 0-1
-		:param riserate: Fraction of a cycle taken for the waveform to rise
+		:type risetime: float, 0-1
+		:param risetime: Fraction of a cycle taken for the waveform to rise
 
-		:type fallrate: float 0-1
-		:param fallrate: Fraction of a cycle taken for the waveform to fall"""
+		:type falltime: float 0-1
+		:param falltime: Fraction of a cycle taken for the waveform to fall"""
+
+		if duty < risetime:
+			raise ValueOutOfRangeException("Duty too small for given rise rate")
+		elif duty + falltime >= 1:
+			raise ValueOutOfRangeException("Duty and fall time too big")
+
 		if ch == 1:
 			self.out1_waveform = SG_WAVE_SQUARE
 			self.out1_enable = True
 			self.out1_amplitude = amplitude
 			self.out1_frequency = frequency
 			self.out1_offset = offset
-			# TODO: Duty, rise, fall
+
+			# This is overdefined, but saves the FPGA doing a tricky division
+			self.out1_t0 = riserate * frequency
+			self.out1_t1 = duty * frequency
+			self.out1_t2 = (duty + fallrate) * frequency
+			self.riserate = risetime
+			self.fallrate = falltime
 		elif ch == 2:
 			self.out2_waveform = SG_WAVE_SQUARE
 			self.out2_enable = True
 			self.out2_amplitude = amplitude
 			self.out2_frequency = frequency
 			self.out2_offset = offset
+			self.out2_t0 = risetime * frequency
+			self.out2_t1 = duty * frequency
+			self.out2_t2 = (duty + falltime) * frequency
+			self.riserate = risetime
+			self.fallrate = falltime
 		else:
 			raise ValueOutOfRangeException("Invalid Channel")
 
@@ -198,9 +216,9 @@ class SignalGenerator(MokuInstrument):
 		:type symmetry: float, 0-1
 		:param symmetry: Fraction of the cycle rising."""
 		self.synth_squarewave(ch, amplitude, frequency,
-			offset=offset, duty=symmetry,
-			riserate=amplitude / frequency / symmetry,
-			fallrate=amplitude / frequency / (1 - symmetry))
+			offset = offset, duty = symmetry,
+			riserate = symmetry,
+			fallrate = 1 - symmetry)
 
 	def synth_modulate(self, ch, type, source, depth, frequency=0):
 		"""
@@ -277,17 +295,17 @@ _siggen_reg_hdl = [
 	('out2_t2',			REG_SG_T22,			lambda t, old: _usgn(t / _SG_PHASESCALE, 32),
 											lambda rval: rval * _SG_PHASESCALE),
 	('out1_riserate',	(REG_SG_RFRATE1_H, REG_SG_RISERATE1_L),
-											lambda r, old: (old[0] & 0xFFFF0000 | _usgn(r, 48) >> 32, _usgn(r, 48) & 0xFFFFFFFF),
-											lambda rval: rval[0] & 0x0000FFFF << 32 | rval[1]),
+											lambda r, old: (old[0] & 0xFFFF0000 | _usgn(r / _SG_RISESCALE, 48) >> 32, _usgn(r / _SG_RISESCALE, 48) & 0xFFFFFFFF),
+											lambda rval: (rval[0] & 0x0000FFFF << 32 | rval[1]) * _SG_RISESCALE),
 	('out1_fallrate',	(REG_SG_RFRATE1_H, REG_SG_FALLRATE1_L),
-											lambda r, old: (old[0] & 0x0000FFFF | (_usgn(r, 48) >> 32) << 16, _usgn(r, 48) & 0xFFFFFFFF),
-											lambda rval: rval[0] & 0xFFFF0000 << 16 | rval[1]),
+											lambda r, old: (old[0] & 0x0000FFFF | (_usgn(r / _SG_RISESCALE, 48) >> 32) << 16, _usgn(r / _SG_RISESCALE, 48) & 0xFFFFFFFF),
+											lambda rval: (rval[0] & 0xFFFF0000 << 16 | rval[1]) * _SG_RISESCALE),
 	('out2_riserate',	(REG_SG_RFRATE2_H, REG_SG_RISERATE2_L),
-											lambda r, old: (old[0] & 0xFFFF0000 | _usgn(r, 48) >> 32, _usgn(r, 48) & 0xFFFFFFFF),
-											lambda rval: rval[0] & 0x0000FFFF << 32 | rval[1]),
+											lambda r, old: (old[0] & 0xFFFF0000 | _usgn(r / _SG_RISESCALE, 48) >> 32, _usgn(r / _SG_RISESCALE, 48) & 0xFFFFFFFF),
+											lambda rval: (rval[0] & 0x0000FFFF << 32 | rval[1]) * _SG_RISESCALE),
 	('out2_fallrate',	(REG_SG_RFRATE2_H, REG_SG_FALLRATE2_L),
-											lambda r, old: (old[0] & 0x0000FFFF | (_usgn(r, 48) >> 32) << 16, _usgn(r, 48) & 0xFFFFFFFF),
-											lambda rval: rval[0] & 0xFFFF0000 << 16 | rval[1]),
+											lambda r, old: (old[0] & 0x0000FFFF | (_usgn(r / _SG_RISESCALE, 48) >> 32) << 16, _usgn(r / _SG_RISESCALE, 48) & 0xFFFFFFFF),
+											lambda rval: (rval[0] & 0xFFFF0000 << 16 | rval[1]) * _SG_RISESCALE),
 	('mod1_amplitude',	REG_SG_MODA1,		lambda a, old: _usgn(a / _SG_DEPTHSCALE, 15), lambda rval: rval),
 	('mod2_amplitude',	REG_SG_MODA2,		lambda a, old: _usgn(a / _SG_DEPTHSCALE, 15),	lambda rval: rval),
 	('out1_modsource',	REG_SG_MODSOURCE,	lambda s, old: old & ~0x00000006 | s << 1 if s in [SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC] else None,

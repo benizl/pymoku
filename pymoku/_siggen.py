@@ -60,7 +60,7 @@ SG_MODSOURCE_ADC	= 1
 SG_MODSOURCE_DAC	= 2
 
 _SG_FREQSCALE		= 1e9 / 2**48
-_SG_PHASESCALE		= 1.0 / 2**32
+_SG_PHASESCALE		= 1.0 / (2**32 - 1)
 _SG_RISESCALE		= 1.0 / 2**48
 _SG_AMPSCALE		= 4.0 / 2**16
 _SG_DEPTHSCALE		= 1.0 / 2**15
@@ -165,7 +165,7 @@ class SignalGenerator(MokuInstrument):
 
 		if duty < risetime:
 			raise ValueOutOfRangeException("Duty too small for given rise rate")
-		elif duty + falltime >= 1:
+		elif duty + falltime > 1:
 			raise ValueOutOfRangeException("Duty and fall time too big")
 
 		if ch == 1:
@@ -176,22 +176,22 @@ class SignalGenerator(MokuInstrument):
 			self.out1_offset = offset
 
 			# This is overdefined, but saves the FPGA doing a tricky division
-			self.out1_t0 = riserate * frequency
-			self.out1_t1 = duty * frequency
-			self.out1_t2 = (duty + fallrate) * frequency
-			self.riserate = risetime
-			self.fallrate = falltime
+			self.out1_t0 = risetime
+			self.out1_t1 = duty
+			self.out1_t2 = duty + falltime
+			self.out1_riserate = frequency / risetime
+			self.out1_fallrate = frequency / falltime
 		elif ch == 2:
 			self.out2_waveform = SG_WAVE_SQUARE
 			self.out2_enable = True
 			self.out2_amplitude = amplitude
 			self.out2_frequency = frequency
 			self.out2_offset = offset
-			self.out2_t0 = risetime * frequency
-			self.out2_t1 = duty * frequency
-			self.out2_t2 = (duty + falltime) * frequency
-			self.riserate = risetime
-			self.fallrate = falltime
+			self.out2_t0 = risetime
+			self.out2_t1 = duty
+			self.out2_t2 = duty + falltime
+			self.out2_riserate = frequency / risetime
+			self.out2_fallrate = frequency / falltime
 		else:
 			raise ValueOutOfRangeException("Invalid Channel")
 
@@ -217,8 +217,8 @@ class SignalGenerator(MokuInstrument):
 		:param symmetry: Fraction of the cycle rising."""
 		self.synth_squarewave(ch, amplitude, frequency,
 			offset = offset, duty = symmetry,
-			riserate = symmetry,
-			fallrate = 1 - symmetry)
+			risetime = symmetry,
+			falltime = 1 - symmetry)
 
 	def synth_modulate(self, ch, type, source, depth, frequency=0):
 		"""
@@ -250,9 +250,9 @@ _siggen_reg_hdl = [
 											lambda rval: rval & 1),
 	('out2_enable',		REG_SG_WAVEFORMS,	lambda s, old: (old & ~2) | int(s) << 1 if int(s) in [0, 1] else None,
 											lambda rval: rval & 2 >> 1),
-	('out1_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x70) | s if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE] else None,
+	('out1_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x70) | (s << 4) if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE] else None,
 											lambda rval: rval & 0x70 >> 4),
-	('out2_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x380) | s if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE] else None,
+	('out2_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x380) | (s << 7) if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE] else None,
 											lambda rval: rval & 0x380 >> 7),
 	('out1_modulation',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x00FF0000) | s << 16 if s in range(SG_MOD_NONE, SG_MOD_AMPL | SG_MOD_FREQ | SG_MOD_PHASE) else None,
 											lambda rval: rval & 0x00FF0000 >> 16),
@@ -295,11 +295,11 @@ _siggen_reg_hdl = [
 	('out2_t2',			REG_SG_T22,			lambda t, old: _usgn(t / _SG_PHASESCALE, 32),
 											lambda rval: rval * _SG_PHASESCALE),
 	('out1_riserate',	(REG_SG_RFRATE1_H, REG_SG_RISERATE1_L),
-											lambda r, old: (old[0] & 0xFFFF0000 | _usgn(r / _SG_RISESCALE, 48) >> 32, _usgn(r / _SG_RISESCALE, 48) & 0xFFFFFFFF),
-											lambda rval: (rval[0] & 0x0000FFFF << 32 | rval[1]) * _SG_RISESCALE),
+											lambda r, old: (old[0] & 0xFFFF0000 | _usgn(r / _SG_FREQSCALE, 48) >> 32, _usgn(r / _SG_FREQSCALE, 48) & 0xFFFFFFFF),
+											lambda rval: _SG_FREQSCALE / (rval[0] & 0x0000FFFF << 32 | rval[1])),
 	('out1_fallrate',	(REG_SG_RFRATE1_H, REG_SG_FALLRATE1_L),
-											lambda r, old: (old[0] & 0x0000FFFF | (_usgn(r / _SG_RISESCALE, 48) >> 32) << 16, _usgn(r / _SG_RISESCALE, 48) & 0xFFFFFFFF),
-											lambda rval: (rval[0] & 0xFFFF0000 << 16 | rval[1]) * _SG_RISESCALE),
+											lambda r, old: (old[0] & 0x0000FFFF | (_usgn(r / _SG_FREQSCALE, 48) >> 32) << 16, _usgn(r / _SG_FREQSCALE, 48) & 0xFFFFFFFF),
+											lambda rval: _SG_FREQSCALE / (rval[0] & 0xFFFF0000 << 16 | rval[1])),
 	('out2_riserate',	(REG_SG_RFRATE2_H, REG_SG_RISERATE2_L),
 											lambda r, old: (old[0] & 0xFFFF0000 | _usgn(r / _SG_RISESCALE, 48) >> 32, _usgn(r / _SG_RISESCALE, 48) & 0xFFFFFFFF),
 											lambda rval: (rval[0] & 0x0000FFFF << 32 | rval[1]) * _SG_RISESCALE),

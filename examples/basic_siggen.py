@@ -22,10 +22,8 @@ else:
 
 i.set_defaults()
 
-i.out1_enable = True
-i.out1_frequency = 10000
-i.out1_amplitude = 1
-i.out1_waveform = SG_WAVE_SINE
+i.synth_sinewave(1, 1.0, 1000000)
+i.synth_squarewave(2, 1.0, 2000000, risetime=0.1, falltime=0.1, duty=0.3)
 i.commit()
 
 try:

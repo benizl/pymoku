@@ -49,6 +49,7 @@ REG_SG_MODA2		= 122
 SG_WAVE_SINE		= 0
 SG_WAVE_SQUARE		= 1
 SG_WAVE_NOISE		= 2
+SG_WAVE_CLIPSINE	= 3
 
 SG_MOD_NONE			= 0
 SG_MOD_AMPL			= 1
@@ -104,7 +105,7 @@ class SignalGenerator(MokuInstrument):
 		self.out1_frequency = 0
 		self.out2_frequency = 0
 
-	def synth_sinewave(self, ch, amplitude, frequency, offset=0, clip=0):
+	def synth_sinewave(self, ch, amplitude, frequency, offset=0, clip=None):
 		""" Generate a Sine Wave with the given parameters on the given channel.
 
 		:type ch: int
@@ -120,22 +121,27 @@ class SignalGenerator(MokuInstrument):
 		:param offset: DC offset applied to the waveform
 
 		:type clip: float, 0-1
-		:param clip: Fraction of the waveform to clip off top and bottom. Sine waves with high clipping ratios can be used to generate
-			high-quality, high-speed square waves where a normal square would suffer from edge jitter.  If the clipping ratio is non-zero,
-			the amplitude field refers to the size of the clipped output waveform."""
+		:param clip: Fraction of the waveform to scale to the amplitude. Sine waves with high clipping ratios can be used to generate
+			high-quality, high-speed square waves where a normal square would suffer from edge jitter.  If the clipping ratio is
+			greater than 1,	the amplitude field refers to the size of the clipped output waveform.
+
+			Only integer ratios are allowed, others will be rounded (i.e. *1 / n* for integer *n*).
+
+			*clip = None* behaves the same as *clip = 1* and preserves the entire waveform."""
 		if ch == 1:
-			self.out1_waveform = SG_WAVE_SINE
+			self.out1_waveform = SG_WAVE_SINE if clip is None else SG_WAVE_CLIPSINE
 			self.out1_enable = True
 			self.out1_amplitude = amplitude
 			self.out1_frequency = frequency
 			self.out1_offset = offset
-			# TODO: Clip
+			self.out1_amp_pc = clip
 		elif ch == 2:
-			self.out2_waveform = SG_WAVE_SINE
+			self.out2_waveform = SG_WAVE_SINE if clip is None else SG_WAVE_CLIPSINE
 			self.out2_enable = True
 			self.out2_amplitude = amplitude
 			self.out2_frequency = frequency
 			self.out2_offset = offset
+			self.out2_amp_pc = clip
 		else:
 			raise ValueOutOfRangeException("Invalid Channel")
 
@@ -250,9 +256,9 @@ _siggen_reg_hdl = [
 											lambda rval: rval & 1),
 	('out2_enable',		REG_SG_WAVEFORMS,	lambda s, old: (old & ~2) | int(s) << 1 if int(s) in [0, 1] else None,
 											lambda rval: rval & 2 >> 1),
-	('out1_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x70) | (s << 4) if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE] else None,
+	('out1_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x70) | (s << 4) if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE, SG_WAVE_CLIPSINE] else None,
 											lambda rval: rval & 0x70 >> 4),
-	('out2_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x380) | (s << 7) if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE] else None,
+	('out2_waveform',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x380) | (s << 7) if s in [SG_WAVE_SINE, SG_WAVE_SQUARE, SG_WAVE_NOISE, SG_WAVE_CLIPSINE] else None,
 											lambda rval: rval & 0x380 >> 7),
 	('out1_modulation',	REG_SG_WAVEFORMS,	lambda s, old: (old & ~0x00FF0000) | s << 16 if s in range(SG_MOD_NONE, SG_MOD_AMPL | SG_MOD_FREQ | SG_MOD_PHASE) else None,
 											lambda rval: rval & 0x00FF0000 >> 16),
@@ -312,9 +318,9 @@ _siggen_reg_hdl = [
 											lambda rval: rval & 0x00000006 >> 1),
 	('out2_modsource',	REG_SG_MODSOURCE,	lambda s, old: old & 0x00000018 | s << 3 if s in [SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC] else None,
 											lambda rval: rval & 0x00000018 >> 3),
-	('out1_amp_pc',		REG_SG_PRECLIP,		lambda a, old: old & 0xFFFF0000 | _usgn(a / _SG_AMPSCALE, 15),
+	('out1_amp_pc',		REG_SG_PRECLIP,		lambda a, old: old & 0xFFFF0000 | _usgn(1 / a, 16),
 											lambda rval: rval & 0x0000FFFF * _SG_AMPSCALE),
-	('out2_amp_pc',		REG_SG_PRECLIP,		lambda a, old: old & 0x0000FFFF | _usgn(a / _SG_AMPSCALE, 15) << 16,
+	('out2_amp_pc',		REG_SG_PRECLIP,		lambda a, old: old & 0x0000FFFF | _usgn(1 / a, 16) << 16,
 											lambda rval: rval >> 16 * _SG_AMPSCALE),
 ]
 _instrument._attach_register_handlers(_siggen_reg_hdl, SignalGenerator)

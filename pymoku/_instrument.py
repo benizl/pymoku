@@ -80,22 +80,22 @@ get-transform: Register(s) to natural units. If *register* is a tuple, the sole 
 def _get_meth(reg, get_xform, self):
 	# Return local if present. Support a single register or a tuple of registers
 	try:
-		c = [ self._localregs[r] or self._remoteregs[r] for r in reg ]
+		c = [ self._localregs[r] if self._localregs[r] is not None else self._remoteregs[r] for r in reg ]
 		if all(i is not None for i in c): return get_xform(c)
 	except TypeError:
-		c = self._localregs[reg] or self._remoteregs[reg]
+		c = self._localregs[reg] if self._localregs[reg] is not None else self._remoteregs[reg]
 		if c is not None: return get_xform(c)
 
 def _set_meth(reg, set_xform, self, data):
 	# Support a single register or a tuple of registers
 	try:
-		old = [ self._localregs[r] or self._remoteregs[r] or 0 for r in reg ]
+		old = [ self._localregs[r] if self._localregs[r] is not None else self._remoteregs[r] or 0 for r in reg ]
 	except TypeError:
-		old = self._localregs[reg] or self._remoteregs[reg] or 0
+		old = self._localregs[reg] if self._localregs[reg] is not None else self._remoteregs[reg] or 0
 
 	new = set_xform(data, old)
 	if new is None:
-		raise ValueOutOfRangeException()
+		raise ValueOutOfRangeException("Reg %d Data %d" % (reg, data))
 
 	try:
 		for r, n in zip(reg, new):
@@ -129,18 +129,30 @@ def _usgn(i, width):
 	if 0 <= i <= 2**width:
 		return int(i)
 
-	raise ValueOutOfRangeException()
+	raise ValueOutOfRangeException("%d doesn't fit in %d unsigned bits" % (i, width))
 
 def _sgn(i, width):
 	""" Return the unsigned that, when interpretted with given width, represents
 	    the signed value i """
-	if i < -2**width or 2**width - 1 < i:
-		raise ValueOutOfRangeException()
+	if i < -2**(width - 1) or 2**(width - 1) - 1 < i:
+		raise ValueOutOfRangeException("%d doesn't fit in %d signed bits" % (i, width))
 
 	if i >= 0:
 		return int(i)
 
 	return int(2**width + i)
+
+def _upsgn(i, width):
+	""" Return the signed integer that comes about by interpretting *i* as a signed
+	field of *width* bytes"""
+
+	if i < 0 or i > 2**width:
+		raise ValueOutOfRangeException()
+
+	if i < 2**(width - 1):
+		return i
+
+	return i - 2**width
 
 class MokuInstrument(object):
 	"""Superclass for all Instruments that may be attached to a :any:`Moku` object.
@@ -236,18 +248,18 @@ _instr_reg_hdl = [
 	('framerate',		REG_FRATE,	lambda f, old: _usgn(f * 256.0 / 477.0, 8),
 									lambda rval: rval * 256.0 / 477.0),
 	# TODO: Assumes cubic
-	('render_deci',		REG_SCALE,	lambda x, old: _usgn(256 / int(x) - 1, 8),
-									lambda x: 256 / (1 + (x & 0xFFFF))),
-	('render_deci_alt',	REG_SCALE,	lambda x, old: _usgn((256 / x) - 1, 8) << 16,
-									lambda x: 256 / (1 + (int(x) >> 16))),
-	('offset',			REG_OFFSET,	lambda x, old: _usgn(x, 32), lambda x: x),
-	('offset_alt',		REG_OFFSETA,lambda x, old: _usgn(x, 32), lambda x: x),
+	('render_deci',		REG_SCALE,	lambda x, old: (old & 0xFFFF0000) | _usgn(128 * (x - 1), 16),
+									lambda x: (x & 0xFFFF) / 128.0 + 1),
+	('render_deci_alt',	REG_SCALE,	lambda x, old: (old & 0x0000FFFF) | _usgn(128 * (x - 1), 16) << 16,
+									lambda x: (int(x) >> 16) / 128.0 + 1),
+	('offset',			REG_OFFSET,	lambda x, old: _sgn(x, 32), lambda x: _upsgn(x, 32)),
+	('offset_alt',		REG_OFFSETA,lambda x, old: _sgn(x, 32), lambda x: _upsgn(x, 32)),
 	# TODO Stream Control
 	('relays_ch1',		REG_AINCTL,	lambda r, old: (old & ~0x07) | _usgn(r, 3),
 									lambda rval: rval & 0x07),
 	('relays_ch2',		REG_AINCTL,	lambda r, old: (old & ~0x38) | _usgn(r, 3) << 3,
 									lambda rval: (rval & 0x38) >> 3),
-	('pretrigger',		REG_PRETRIG,lambda p, old: int(p), lambda rval: rval),
+	('pretrigger',		REG_PRETRIG,lambda p, old: _sgn(p, 32), lambda rval: _upsgn(rval, 32)),
 	# TODO Expose cal if required?
 	('state_id',		REG_STATE,	lambda s, old: (old & ~0xFF) | _usgn(s, 8), lambda rval: rval & 0xFF),
 	('state_id_alt',	REG_STATE,	lambda s, old: (old & ~0xFF0000) | _usgn(s, 8) << 16, lambda rval: rval >> 16),

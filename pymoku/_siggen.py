@@ -134,14 +134,14 @@ class SignalGenerator(MokuInstrument):
 			self.out1_amplitude = amplitude
 			self.out1_frequency = frequency
 			self.out1_offset = offset
-			self.out1_amp_pc = clip
+			self.out1_amp_pc = clip or 1
 		elif ch == 2:
 			self.out2_waveform = SG_WAVE_SINE if clip is None else SG_WAVE_CLIPSINE
 			self.out2_enable = True
 			self.out2_amplitude = amplitude
 			self.out2_frequency = frequency
 			self.out2_offset = offset
-			self.out2_amp_pc = clip
+			self.out2_amp_pc = clip or 1
 		else:
 			raise ValueOutOfRangeException("Invalid Channel")
 

@@ -91,18 +91,17 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 	def _optimal_decimation(self, t1, t2):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalADCDecimation
 		ts = abs(t1 - t2)
-		bufferspan = min(max(ts, 0.1), ts * 3)
-		return math.ceil(_OSC_ADC_SMPS * bufferspan / _OSC_BUFLEN)
+		return math.ceil(_OSC_ADC_SMPS * ts / _OSC_BUFLEN)
 
 	def _buffer_offset(self, t1, t2, decimation):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalBufferOffset
 		# TODO: Roll mode
 
 		buffer_smps = _OSC_ADC_SMPS / decimation
-		buffer_timespan = _OSC_BUFLEN / buffer_smps
-		offset_secs = (abs(t1 - t2) + buffer_timespan) / 2.0
+		offset_secs = t1
+		offset = min(max(math.ceil(offset_secs * buffer_smps / 4.0), -2**28), 2**12)
 
-		return min(max(math.ceil(offset_secs * buffer_smps / 4.0), -2**28), 2**12)
+		return offset
 
 	def _render_downsample(self, t1, t2, decimation):
 		# Based on mercury_ipad/LISettings::OSCalculateRenderDownsamplingForDecimation
@@ -125,6 +124,9 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		return math.ceil(-time_left * buffer_smps)
 
+		# For now, only support viewing the whole captured buffer
+		#return buffer_offset * 4
+
 	def set_timebase(self, t1, t2):
 		""" Set the left- and right-hand span for the time axis.
 		Units are seconds relative to the trigger point.
@@ -142,6 +144,10 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.pretrigger = self._buffer_offset(t1, t2, self.decimation_rate)
 		self.render_deci = self._render_downsample(t1, t2, self.decimation_rate)
 		self.offset = self._render_offset(t1, t2, self.decimation_rate, self.pretrigger, self.render_deci)
+
+		log.debug("Render params: Deci %f PT: %f, RDeci: %f, Off: %f", self.decimation_rate, self.pretrigger, self.render_deci, self.offset)
+
+		self.render_deci = 16
 
 		# Set alternates to regular, means we get distorted frames until we get a new trigger
 		self.render_deci_alt = self.render_deci
@@ -248,6 +254,6 @@ _osc_reg_hdl = [
 											lambda rval: rval & 0x01),
 	('ain_mode',		REG_OSC_ACTL,		lambda m, old: (old & ~0x300) | m << 16 if m in [_OSC_AIN_DDS, _OSC_AIN_DECI] else None,
 											lambda rval: (rval & 0x300) >> 16),
-	('decimation_rate',	REG_OSC_DECIMATION,	lambda r, old: int(r), lambda rval: rval),
+	('decimation_rate',	REG_OSC_DECIMATION,	lambda r, old: _usgn(r, 32), lambda rval: rval),
 ]
 _instrument._attach_register_handlers(_osc_reg_hdl, Oscilloscope)

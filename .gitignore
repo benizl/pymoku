@@ -1,3 +1,4 @@
 pymoku.egg-info
 *.pyc
 doc/_build
+.DS_Store

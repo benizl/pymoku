@@ -405,7 +405,10 @@ class Moku(object):
 		to be controlled."""
 		import pymoku.instruments
 		i = int(self._get_property_single('system.instrument'))
-		instr = pymoku.instruments.id_table[i]
+		try:
+			instr = pymoku.instruments.id_table[i]
+		except KeyError:
+			instr = None
 
 		if instr is None: return None
 

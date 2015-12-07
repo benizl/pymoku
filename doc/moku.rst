@@ -30,6 +30,8 @@ Instrument Classes
 
 .. autoclass:: pymoku.instruments.MokuInstrument
 
+.. autoclass:: pymoku.instruments.DataFrame
+
 Instruments
 ^^^^^^^^^^^
 

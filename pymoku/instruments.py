@@ -12,6 +12,7 @@ import _frame_instrument
 _this_module = sys.modules[__name__]
 
 DataFrame = _frame_instrument.DataFrame
+VoltsFrame = _frame_instrument.VoltsFrame
 
 MokuInstrument = _instrument.MokuInstrument
 

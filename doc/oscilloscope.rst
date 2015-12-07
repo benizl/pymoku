@@ -4,7 +4,7 @@ Moku:Lab Oscilloscope
 
 The Oscilloscope instrument provides time-domain views of voltages. It contains a built-in Waveform Synthesiser/ Signal Generator that can control the Moku:Lab DAC outputs as well.
 
-In normal operation, the Oscilloscope shows the signal present on the two ADC inputs but it can be set to loop back the signals being synthesised. This loopback takes up a channel (only two signals in total may be viewed at once).  Data is provided at the :any:`framerate` in the form of :any:`DataFrame` objects. These objects contain the channel data and the required metadata to interpret them.
+In normal operation, the Oscilloscope shows the signal present on the two ADC inputs but it can be set to loop back the signals being synthesised. This loopback takes up a channel (only two signals in total may be viewed at once).  Data is provided at the :any:`framerate` in the form of :any:`VoltsFrame` objects. These objects contain the channel data and the required metadata to interpret them.
 
 The Oscilloscope instrument also provides a facility for datalogging. The user should put the instrument in to Roll mode and turn the span down such that fewer than 10ksmps are being generated; then the datalogger may be enabled and all raw data points will be saved to the Moku:Lab's SD card.
 
@@ -61,10 +61,10 @@ Example Usage
 
 
 
-The DataFrame Class
--------------------
+The VoltsFrame Class
+--------------------
 
-.. autoclass:: pymoku.instruments.DataFrame
+.. autoclass:: pymoku.instruments.VoltsFrame
 
 	.. Don't use :members: as it doesn't handle instance attributes well. Directives in the source code list required attributes directly.
 

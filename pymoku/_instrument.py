@@ -180,7 +180,7 @@ class MokuInstrument(object):
 			# Getting the attribute, try to find the accessor
 			return MokuInstrument._accessor_dict["get_" + name](self)
 		else:
-			raise AttributeError()
+			raise AttributeError("No Attribute %s" % name)
 
 	def __setattr__(self, name, value):
 		if "set_" + name in MokuInstrument._accessor_dict:

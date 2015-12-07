@@ -84,9 +84,12 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 	"""
 	def __init__(self):
 		"""Create a new Oscilloscope instrument, ready to be attached to a Moku."""
-		super(Oscilloscope, self).__init__()
+		self.scales = {}
+
+		super(Oscilloscope, self).__init__(_frame_instrument.VoltsFrame, scales=self.scales)
 		self.id = 1
 		self.type = "oscilloscope"
+		self.calibration = None
 
 	def _optimal_decimation(self, t1, t2):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalADCDecimation
@@ -231,6 +234,38 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
 		self.set_frontend(1)
 		self.set_frontend(2)
+
+	def _calculate_scales(self):
+		# Returns the bits-to-volts numbers for each channel in the current state
+
+		sect1 = "calibration.AG-%s-%s-%s-1" % ( "50" if self.relays_ch1 & RELAY_LOWZ else "1M",
+								  "L" if self.relays_ch1 & RELAY_LOWG else "H",
+								  "D" if self.relays_ch1 & RELAY_DC else "A")
+
+		sect2 = "calibration.AG-%s-%s-%s-1" % ( "50" if self.relays_ch2 & RELAY_LOWZ else "1M",
+								  "L" if self.relays_ch2 & RELAY_LOWG else "H",
+								  "D" if self.relays_ch2 & RELAY_DC else "A")
+
+		g1 = 1 / float(self.calibration[sect1])
+		g2 = 1 / float(self.calibration[sect2])
+
+		if self.ain_mode == _OSC_AIN_DECI:
+			g1 /= self.decimation_rate
+			g2 /= self.decimation_rate
+
+		return (g1, g2)
+
+	def commit(self):
+		super(Oscilloscope, self).commit()
+		self.scales[self._stateid] = self._calculate_scales()
+		# TODO: Trim scales dictionary, getting rid of old ids
+
+	def attach_moku(self, moku):
+		super(Oscilloscope, self).attach_moku(moku)
+
+		self.calibration = dict(self._moku._get_property_section("calibration"))
+
+		log.debug("Oscilloscope Calibration: %s", self.calibration)
 
 _osc_reg_hdl = [
 	('source_ch1',		REG_OSC_OUTSEL,		lambda s, old: (old & ~1) | s if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,

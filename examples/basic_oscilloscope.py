@@ -28,7 +28,7 @@ line2, = plt.plot([])
 plt.ion()
 plt.show()
 plt.grid(b=True)
-plt.ylim([-2000, 2000]) # TODO: Get these from the instrument
+plt.ylim([-10, 10])
 plt.xlim([0,1024])
 
 try:

@@ -22,7 +22,6 @@ else:
 
 i.set_defaults()
 i.set_buffer_length(4)
-
 i.synth_squarewave(1, 1.0, 1, risetime=0.1, falltime=0.1, duty=0.4)
 i.synth_sinewave(2, 0.5, 2)
 
@@ -33,7 +32,7 @@ line2, = plt.plot([])
 plt.ion()
 plt.show()
 plt.grid(b=True)
-plt.ylim([-2000, 2000]) # TODO: Get these from the instrument
+plt.ylim([-10, 10])
 plt.xlim([0,1024])
 
 try:

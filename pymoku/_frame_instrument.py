@@ -50,30 +50,21 @@ class FrameQueue(Queue):
 
 class DataFrame(object):
 	"""
-	.. mysterious undocumented magic.
-
-	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.ch1
-		:annotation: = [CH1_DATA]
-
-	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.ch1
-		:annotation: = [CH2_DATA]
-
-	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.frameid
-		:annotation: = n
-
-	.. autoinstanceattribute:: pymoku._frame_instrument.DataFrame.waveformid
-		:annotation: = n
+	Superclass representing a full frame of some kind of data. This class is never used directly,
+	but rather it is subclassed depending on the type of data contained and the instrument from
+	which it originated. For example, the :any:`Oscilloscope` instrument will generate :any:`VoltsFrame`
+	objects, where :any:`VoltsFrame` is a subclass of :any:`DataFrame`.
 	"""
 	def __init__(self):
 		self.complete = False
 		self.chs_valid = [False, False]
 
-		#: Channel 1 data array. Present whether or not the channel is enabled, but the contents
+		#: Channel 1 raw data array. Present whether or not the channel is enabled, but the contents
 		#: are undefined in the latter case.
-		self.ch1 = []
+		self.raw1 = []
 
-		#: Channel 2 data array.
-		self.ch2 = []
+		#: Channel 2 raw data array.
+		self.raw2 = []
 
 		self.stateid = None
 		self.trigstate = None
@@ -88,9 +79,7 @@ class DataFrame(object):
 
 	def add_packet(self, packet):
 		hdr_len = 13
-		smpls = 1026
-		d_len = smpls * 4
-		if len(packet) != hdr_len + d_len:
+		if len(packet) <= hdr_len:
 			log.warning("Corrupt frame recevied")
 			return
 
@@ -108,28 +97,93 @@ class DataFrame(object):
 			self.frameid = frameid
 			self.chs_valid = [False, False]
 
-		dat = struct.unpack('<' + 'i' * smpls, packet[hdr_len:])
-		dat = [ x if x != -0x80000000 else None for x in dat ]
-
 		# For historical reasons the data length is 1026 while there are only 1024
 		# valid samples. Trim the fat.
 		if chan == 0:
 			self.chs_valid[0] = True
-			self.ch1 = dat[:1024]
+			self.raw1 = packet[hdr_len:]
 		else:
 			self.chs_valid[1] = True
-			self.ch2 = dat[:1024]
+			self.raw2 = packet[hdr_len:]
 
 		self.complete = all(self.chs_valid)
+
+		if self.complete:
+			self.process_complete()
+
+	def process_complete(self):
+		# Designed to be overridden by subclasses needing to transform the raw data in to Volts etc.
+		pass
+
+class VoltsFrame(DataFrame):
+	"""
+	Object representing a frame of data in units of Volts. This is the native output format of
+	the :any:`Oscilloscope` instrument and similar.
+
+	This object should not be instantiated directly, but will be returned by a supporting *get_frame*
+	implementation.
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.ch1
+		:annotation: = [CH1_DATA]
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.ch2
+		:annotation: = [CH2_DATA]
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.frameid
+		:annotation: = n
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.waveformid
+		:annotation: = n
+	"""
+	def __init__(self, scales):
+		super(VoltsFrame, self).__init__()
+
+		#: Channel 1 data array in units of Volts. Present whether or not the channel is enabled, but the
+		#: contents are undefined in the latter case.
+		self.ch1 = []
+
+		#: Channel 2 data array in units of Volts.
+		self.ch2 = []
+
+		self.scales = scales
+
+	def process_complete(self):
+
+		if self.stateid not in self.scales:
+			log.error("Can't render voltage frame, haven't saved calibration data for state %d", self.stateid)
+			return
+
+		scale1, scale2 = self.scales[self.stateid]
+
+		try:
+			smpls = int(len(self.raw1) / 4)
+			dat = struct.unpack('<' + 'i' * smpls, self.raw1)
+			dat = [ x if x != -0x80000000 else None for x in dat ]
+
+			self.ch1 = [ float(x) * scale1 for x in dat[:1024] ]
+
+			smpls = int(len(self.raw2) / 4)
+			dat = struct.unpack('<' + 'i' * smpls, self.raw2)
+			dat = [ x if x != -0x80000000 else None for x in dat ]
+
+			self.ch2 = [ float(x) * scale2 for x in dat[:1024] ]
+		except (IndexError, TypeError, struct.error):
+			# If the data is bollocksed, force a reinitialisation on next packet
+			log.exception("Oscilloscope packet")
+			self.frameid = None
+			self.complete = False
 
 # Revisit: Should this be a Mixin? Are there more instrument classifications of this type, recording ability, for example?
 class FrameBasedInstrument(_instrument.MokuInstrument):
 	""" FrameWaffle """
-	def __init__(self):
+	def __init__(self, frame_class, **frame_kwargs):
 		super(FrameBasedInstrument, self).__init__()
 		self._buflen = 1
 		self._queue = FrameQueue(maxsize=self._buflen)
 		self._hb_forced = False
+
+		self.frame_class = frame_class
+		self.frame_kwargs = frame_kwargs
 
 	def flush(self):
 		""" Clear the Frame Buffer.
@@ -228,7 +282,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		skt.connect("tcp://%s:27185" % self._moku._ip)
 		skt.setsockopt_string(zmq.SUBSCRIBE, u'')
 
-		fr = DataFrame()
+		fr = self.frame_class(**self.frame_kwargs)
 
 		try:
 			while self._running:
@@ -238,7 +292,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 					if fr.complete:
 						self._queue.put_nowait(fr)
-						fr = DataFrame()
+						fr = self.frame_class(**self.frame_kwargs)
 		finally:
 			skt.close()
 			ctx.destroy()

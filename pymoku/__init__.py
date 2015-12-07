@@ -377,6 +377,9 @@ class Moku(object):
 		Attaches a :any:`MokuInstrument` subclass to the Moku, deploying and activating an instrument.
 
 		Either this function or :any:`discover_instrument` must be called before an instrument can be manipulated"""
+		if self._instrument:
+			self._instrument.set_running(False)
+
 		self._instrument = instrument
 		self._instrument.attach_moku(self)
 		self._instrument.set_running(False)

@@ -39,8 +39,8 @@ class Moku(object):
 		self._instrument = None
 		self._known_mokus = []
 
-		ctx = zmq.Context()
-		self._conn = ctx.socket(zmq.REQ)
+		self._ctx = zmq.Context()
+		self._conn = self._ctx.socket(zmq.REQ)
 		self._conn.connect("tcp://%s:%d" % (self._ip, Moku.PORT))
 
 		self.name = None
@@ -421,3 +421,4 @@ class Moku(object):
 			self._instrument.set_running(False)
 
 		self._conn.close()
+		self._ctx.destroy()

@@ -162,10 +162,7 @@ class MokuInstrument(object):
 	_accessor_dict = {}
 
 	def __init__(self):
-		""" Should be overridden in implementations, initialising _localregs to an
-		    appropriate sest of initial conditions. Overriding function should
-		    call this superclass initialiser as their first action with the Moku
-		    Instrument ID they drive as the only argument. """
+		""" Should be overridden in implementations. """
 		self._moku = None
 		self._remoteregs = [None]*128
 		self._localregs = [None]*128
@@ -220,13 +217,37 @@ class MokuInstrument(object):
 		self._localregs = [None] * 128
 
 	def sync_registers(self):
+		"""
+		Reload state from the Moku.
+
+		This should never have to be called explicitly, however in advanced operation where the
+		Moku state is being updated outside of pymoku, this will give the user access to those
+		modified states through their attributes or accessors
+		"""
 		if self._moku is None: raise NotDeployedException()
 		self._remoteregs = zip(*self._moku._read_regs(range(128)))[1]
 
 	def dump_remote_regs(self):
+		"""
+		Return the current register state of the Moku.
+
+		This should never have to be called explictly, however in advanced operation where the
+		Moku state is being updated outside of pymoku, this gives the user access to the register
+		values directly.
+
+		Unlike :any:`sync_registers`, no local state is updated to reflect these register values
+		and they are not made available through attributes or accessors.
+		"""
 		return self._moku._read_regs(range(128))
 
 	def set_running(self, state):
+		"""
+		Assert or release the intrument reset line.
+
+		This should never have to be called explicitly, as the instrument is correctly reset when
+		it is attached and detached. In advanced operation, this can be used to force the instrument
+		in to its initial state without a redeploy.
+		"""
 		self._running = state
 		reg = (INSTR_RST if not state else 0)
 		self._localregs[REG_CTL] = reg

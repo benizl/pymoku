@@ -35,6 +35,19 @@ class FrameQueue(Queue):
 		finally:
 			self.not_full.release()
 
+	def get(self, block=True, timeout=None):
+		item = None
+		while True:
+			try:
+				item = Queue.get(self, block=block, timeout=timeout or 1)
+			except Empty:
+				if timeout is None:
+					continue
+				else:
+					raise
+			else:
+				return item
+
 class DataFrame(object):
 	"""
 	.. mysterious undocumented magic.

@@ -155,7 +155,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# Set alternates to regular, means we get distorted frames until we get a new trigger
 		self.render_deci_alt = self.render_deci
 		self.offset_alt = self.offset
-		self.commit()
 
 	def set_xmode(self, xmode):
 		"""
@@ -174,7 +173,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:param state: Select Precision Mode
 		:type state: bool """
 		self.ain_mode = _OSC_AIN_DECI if state else _OSC_AIN_DDS
-		self.commit()
 
 	def set_trigger(self, source, edge, level, hysteresis=0, hf_reject=False, mode=OSC_TRIG_AUTO):
 		""" Sets trigger source and parameters.
@@ -195,7 +193,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.hysteresis = hysteresis
 		self.hf_reject = hf_reject
 		self.trig_mode = mode
-		self.commit()
 
 	def set_defaults(self):
 		""" Reset the Oscilloscope to sane defaults. """

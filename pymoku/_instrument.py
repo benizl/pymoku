@@ -276,8 +276,6 @@ class MokuInstrument(object):
 		elif channel == 2:
 			self.relays_ch2 = relays
 
-		self.commit()
-
 _instr_reg_hdl = [
 	# Name, Register, set-transform (user to register), get-transform (register to user); either None is W/R-only
 	('instr_id',		REG_ID1, None, lambda rval: rval & 0xFF),

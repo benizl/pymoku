@@ -281,6 +281,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		skt = ctx.socket(zmq.SUB)
 		skt.connect("tcp://%s:27185" % self._moku._ip)
 		skt.setsockopt_string(zmq.SUBSCRIBE, u'')
+		skt.setsockopt(zmq.CONFLATE, 1)
 
 		fr = self.frame_class(**self.frame_kwargs)
 

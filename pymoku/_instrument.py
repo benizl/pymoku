@@ -80,10 +80,10 @@ get-transform: Register(s) to natural units. If *register* is a tuple, the sole 
 def _get_meth(reg, get_xform, self):
 	# Return local if present. Support a single register or a tuple of registers
 	try:
-		c = [ self._localregs[r] if self._localregs[r] is not None else self._remoteregs[r] for r in reg ]
+		c = [ self._localregs[r] if self._localregs[r] is not None else self._remoteregs[r] or 0 for r in reg ]
 		if all(i is not None for i in c): return get_xform(c)
 	except TypeError:
-		c = self._localregs[reg] if self._localregs[reg] is not None else self._remoteregs[reg]
+		c = self._localregs[reg] if self._localregs[reg] is not None else self._remoteregs[reg] or 0
 		if c is not None: return get_xform(c)
 
 def _set_meth(reg, set_xform, self, data):

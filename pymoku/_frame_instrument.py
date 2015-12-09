@@ -160,13 +160,13 @@ class VoltsFrame(DataFrame):
 			dat = struct.unpack('<' + 'i' * smpls, self.raw1)
 			dat = [ x if x != -0x80000000 else None for x in dat ]
 
-			self.ch1 = [ float(x) * scale1 for x in dat[:1024] ]
+			self.ch1 = [ float(x) * scale1 if x is not None else None for x in dat[:1024] ]
 
 			smpls = int(len(self.raw2) / 4)
 			dat = struct.unpack('<' + 'i' * smpls, self.raw2)
 			dat = [ x if x != -0x80000000 else None for x in dat ]
 
-			self.ch2 = [ float(x) * scale2 for x in dat[:1024] ]
+			self.ch2 = [ float(x) * scale2 if x is not None else None for x in dat[:1024] ]
 		except (IndexError, TypeError, struct.error):
 			# If the data is bollocksed, force a reinitialisation on next packet
 			log.exception("Oscilloscope packet")

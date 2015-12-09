@@ -9,7 +9,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.DEBUG)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku('192.168.1.117')
+m = Moku('192.168.1.104')
 
 i = m.discover_instrument()
 
@@ -22,6 +22,7 @@ else:
 
 i.set_defaults()
 i.set_buffer_length(4)
+i.commit()
 
 line1, = plt.plot([])
 line2, = plt.plot([])

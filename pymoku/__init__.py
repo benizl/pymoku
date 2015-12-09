@@ -297,7 +297,7 @@ class Moku(object):
 
 		pkt = struct.pack("<BBB", 0x53, 0, 1) #TODO: Proper sequence number
 		pkt += tag + mp
-		pkt += struct.pack("<iifB", start, end, scale, flags)
+		pkt += struct.pack("<IIB", start, end, flags)
 
 		self._conn.send(pkt)
 		reply = self._conn.recv()

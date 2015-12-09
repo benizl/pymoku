@@ -197,31 +197,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.trig_mode = mode
 		self.commit()
 
-	def set_frontend(self, channel, fiftyr=False, atten=True, ac=False):
-		""" Configures gain, coupling and termination for each channel.
-
-		:type channel: int
-		:param channel: Channel to which the settings should be applied
-
-		:type fiftyr: bool
-		:param fiftyr: 50Ohm termination; default is 1MOhm.
-
-		:type atten: bool
-		:param atten: Turn on 10x attenuation. Changes the dynamic range between 1Vpp and 10Vpp.
-
-		:type ac: bool
-		:param ac: AC-couple; default DC. """
-		relays =  RELAY_LOWZ if fiftyr else 0
-		relays |= RELAY_LOWG if atten else 0
-		relays |= RELAY_DC if not ac else 0
-
-		if channel == 1:
-			self.relays_ch1 = relays
-		elif channel == 2:
-			self.relays_ch2 = relays
-
-		self.commit()
-
 	def set_defaults(self):
 		""" Reset the Oscilloscope to sane defaults. """
 		super(Oscilloscope, self).set_defaults()

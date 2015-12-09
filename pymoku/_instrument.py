@@ -196,8 +196,8 @@ class MokuInstrument(object):
 
 	def commit(self):
 		"""
-		Apply all modified settings. 
-		
+		Apply all modified settings.
+
 		.. note::
 
 		    This **must** be called after any *set_* or *synth_* function has been called, or control
@@ -253,6 +253,30 @@ class MokuInstrument(object):
 		self._localregs[REG_CTL] = reg
 		self.commit()
 
+	def set_frontend(self, channel, fiftyr=False, atten=True, ac=False):
+		""" Configures gain, coupling and termination for each channel.
+
+		:type channel: int
+		:param channel: Channel to which the settings should be applied
+
+		:type fiftyr: bool
+		:param fiftyr: 50Ohm termination; default is 1MOhm.
+
+		:type atten: bool
+		:param atten: Turn on 10x attenuation. Changes the dynamic range between 1Vpp and 10Vpp.
+
+		:type ac: bool
+		:param ac: AC-couple; default DC. """
+		relays =  RELAY_LOWZ if fiftyr else 0
+		relays |= RELAY_LOWG if atten else 0
+		relays |= RELAY_DC if not ac else 0
+
+		if channel == 1:
+			self.relays_ch1 = relays
+		elif channel == 2:
+			self.relays_ch2 = relays
+
+		self.commit()
 
 _instr_reg_hdl = [
 	# Name, Register, set-transform (user to register), get-transform (register to user); either None is W/R-only

@@ -302,11 +302,11 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		hs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		hs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 		hs.settimeout(0.1)
-		hs.bind(('0.0.0.0', Moku.PORT + 1))
+		hs.bind(('0.0.0.0', 27183))
 
 		try:
 			while self._running:
-				self._send_heartbeat(hs, Moku.PORT + 1)
+				self._send_heartbeat(hs, 27183)
 				time.sleep(1.0)
 		finally:
 			hs.close()

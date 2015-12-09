@@ -7,9 +7,13 @@ import _instrument
 import _frame_instrument
 import _siggen
 
+from struct import unpack
+
+import sys
 # Annoying that import * doesn't pick up function defs??
 _sgn = _instrument._sgn
 _usgn = _instrument._usgn
+_upsgn = _instrument._upsgn
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +28,37 @@ REG_PM_OUTDEC = 67
 REG_PM_OUTSHIFT = 67
 
 _PM_FREQSCALE = 2.0**48 / (500.0 * 10e6)
+
+class PhaseMeterDataFrame(_frame_instrument.DataFrame):
+	def __init__(self):
+		super(PhaseMeterDataFrame, self).__init__()
+		self.phase1 = 0.0
+		self.phase2 = 0.0
+		self.frequency1 = 0.0
+		self.frequency2 = 0.0
+		self.amplitude1 = 0.0
+		self.amplitude2 = 0.0
+		self.counter1 = 0
+		self.counter2 = 0
+
+	def process_channel(self, raw_data):
+		i = 0
+		while raw_data[i:i+16] != ('\xAA' * 4 + '\x55' * 4) * 2:
+			i += 4
+			if i >= 50: raise Exception("Couldn't find alignment bytes.")
+		i += 16
+
+		data = unpack('<IIII', raw_data[i:i+16])
+
+		freq = _upsgn(((data[2] & 0xFFFF0000) << 16) | data[0], 48)
+		phase = _upsgn(((data[3] & 0xFFFF0000) << 16) | data[1], 48)
+		amp = data[2] & 0xFFFF
+		count = data[3] & 0xFFFF
+		return freq, phase, amp, count
+
+	def process_complete(self):
+		self.phase1, self.frequency1, self.amplitude1, self.counter1 = self.process_channel(self.raw1)
+		self.phase2, self.frequency2, self.amplitude2, self.counter2 = self.process_channel(self.raw2)
 
 class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument may not be appropriate when we get streaming going.
 	""" PhaseMeter instrument object. This should be instantiated and attached to a :any:`Moku` instance.
@@ -51,7 +86,7 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 	"""
 	def __init__(self):
 		"""Create a new PhaseMeter instrument, ready to be attached to a Moku."""
-		super(PhaseMeter, self).__init__()
+		super(PhaseMeter, self).__init__(PhaseMeterDataFrame)
 		self.id = 3
 		self.type = "phasemeter"
 
@@ -59,14 +94,21 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		super(PhaseMeter, self).set_defaults()
 		self.x_mode = _instrument.ROLL
 		self.framerate = 10
-		self.frame_length = 1024
+		self.frame_length = 64
 		self.init_freq_ch1 = 10 * 10e6
 		self.init_freq_ch2 = 10 * 10e6
 		self.control_gain = 100
 		self.control_shift = 0
 		self.integrator_shift = 5
-		self.output_decimation = 50
-		self.output_shift = 0
+		self.output_decimation = 500
+		self.output_shift = 7
+		self.pretrigger = 0
+		self.render_deci = 1.0
+		self.offset = 64
+		self.render_deci_alt = self.render_deci
+		self.offset_alt = self.offset
+		self.set_frontend(1, fiftyr=True, atten=True, ac=True)
+		self.set_frontend(2, fiftyr=True, atten=True, ac=True)
 
 _pm_reg_hdl = [
 	('init_freq_ch1',		(REG_PM_INITF1_H, REG_PM_INITF1_L),

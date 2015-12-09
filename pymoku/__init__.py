@@ -1,6 +1,7 @@
 
 
 import socket, select, struct, logging
+import os.path
 import zmq
 
 log = logging.getLogger(__name__)
@@ -326,6 +327,147 @@ class Moku(object):
 		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", reply[:8])
 
 		return stat, bt
+
+	def _fs_send_generic(self, action, data):
+		pkt = struct.pack("<BIB", 0x49, len(data) + 1, action)
+		pkt += data
+		self._conn.send(pkt)
+
+	def _fs_receive_generic(self, action):
+		reply = self._conn.recv()
+		hdr = reply[0]
+		l = struct.unpack("<I", reply[1:5])[0]
+		pkt = reply[5:]
+
+		if l != len(pkt):
+			raise NetworkError("Unexpected file reply length %d/%d" % (l, len(pkt)))
+
+		act, status = struct.unpack("BB", pkt[:2])
+
+		if status:
+			raise NetworkError("File receive error %d", status)
+
+		return pkt[2:]
+
+
+	def _send_file(self, mp, localname):
+		with open(localname, 'rb') as f:
+			data = f.read()
+
+		remotename = os.path.basename(localname)
+
+		fname = mp + ":" + remotename
+
+		pkt = chr(len(fname)) + fname
+		pkt += struct.pack("<II", 0, len(data))
+		pkt += data
+
+		self._fs_send_generic(2, pkt)
+
+		self._fs_receive_generic(2)
+
+		return remotename
+
+	def _receive_file(self, mp, fname, l):
+		qfname = mp + ":" + fname
+
+		pkt = chr(len(qfname)) + qfname
+		pkt += struct.pack("<II", 0, l)
+
+		self._fs_send_generic(1, pkt)
+
+		reply = self._fs_receive_generic(1)
+		l = struct.unpack("<I", reply[:4])[0]
+
+		with open(fname, "wb") as f:
+			f.write(reply[4:])
+
+	def _fs_chk(self, mp, fname):
+		fname = mp + ":" + fname
+		self._fs_send_generic(3, chr(len(fname)) + fname)
+
+		return struct.unpack("<I", self._fs_receive_generic(3))[0]
+
+	def _fs_size(self, mp, fname):
+		fname = mp + ":" + fname
+		self._fs_send_generic(4, chr(len(fname)) + fname)
+
+		return struct.unpack("<I", self._fs_receive_generic(4))[0]
+
+	def _fs_list(self, mp):
+		self._fs_send_generic(5, mp)
+
+		reply = self._fs_receive_generic(5)
+
+		n = struct.unpack("<H", reply[:2])[0]
+		reply = reply[2:]
+
+		names = []
+
+		for i in range(n):
+			chk, bl, fl = struct.unpack("<IIB", reply[:9])
+			names.append((reply[9 : fl + 9], chk, bl))
+
+			reply = reply[fl + 9 :]
+
+		return names
+
+	def _fs_free(self, mp):
+		self._fs_send_generic(6, mp)
+
+		t, f = struct.unpack("<LL", self._fs_receive_generic(6))
+
+		return t, f
+
+	def load_bitstream(self, path):
+		"""
+		Load a bitstream file to the Moku, ready for deployment.
+
+		:type path: String
+		:param path: Local path to bitstream file.
+
+		:raises NetworkError: if the upload fails verification.
+		"""
+		import zlib
+		log.debug("Loading bitstream %s", path)
+
+		flist = self._fs_list('b')
+
+		log.debug("File already exists on target, overwriting.")
+
+		rname = self._send_file('b', path)
+
+		log.debug("Verifying upload")
+
+		chk = self._fs_chk('b', rname)
+
+		with open(path, 'rb') as fp:
+			chk2 = zlib.crc32(fp.read()) & 0xffffffff
+
+		if chk != chk2:
+			raise NetworkError("Bitstream upload failed checksum verification.")
+
+	def _trigger_fwload(self):
+		self._conn.send(chr(0x52) + chr(0x01))
+		hdr, reply = struct.unpack("<BB", self._conn.recv())
+
+		if reply:
+			raise InvalidOperationException("Firmware update failure %d", reply)
+
+	def load_firmware(self, path):
+		"""
+		Updates the firmware on the Moku.
+
+		The Moku will automatically power off when the update is complete.
+
+		:type path: String
+		:param path: Path to compatible *moku.fw*
+		:raises InvalidOperationException: if the firmware is not compatible.
+		"""
+		log.debug("Sending firmware file")
+		self._send_file('f', path)
+		log.debug("Updating firmware")
+		self._trigger_fwload()
 
 	def get_serial(self):
 		""" :return: Serial number of connected Moku:Lab """

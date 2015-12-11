@@ -21,6 +21,7 @@ i.set_defaults()
 i.decimation_rate = 5e6 # 100Hz
 i.set_xmode(OSC_ROLL)
 i.commit()
+
 i.datalogger_start(1)
 
 while True:
@@ -33,4 +34,7 @@ while True:
 		break
 
 i.datalogger_stop()
+
+i.datalogger_upload()
+
 m.close()

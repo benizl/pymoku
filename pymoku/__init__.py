@@ -286,8 +286,7 @@ class Moku(object):
 		return r[0][1]
 
 
-	def _stream_start(self, ch1=True, ch2=True, ftype='csv', use_sd=True, start=0, end=0, scale=1.0):
-		tag = '0001' # TODO: Track and increment
+	def _stream_start(self, ch1=True, ch2=True, ftype='csv', use_sd=True, start=0, end=0, tag='0000'):
 		mp = 'e' if use_sd else 'i'
 
 		ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2 }[ftype]

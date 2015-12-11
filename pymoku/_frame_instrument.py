@@ -2,11 +2,9 @@
 import select, socket, struct, sys
 import logging, time, threading
 from Queue import Queue, Empty
-from pymoku import Moku, FrameTimeout
+from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException
 
 import _instrument
-
-from pymoku import NotDeployedException
 
 log = logging.getLogger(__name__)
 
@@ -175,12 +173,12 @@ class VoltsFrame(DataFrame):
 
 # Revisit: Should this be a Mixin? Are there more instrument classifications of this type, recording ability, for example?
 class FrameBasedInstrument(_instrument.MokuInstrument):
-	""" FrameWaffle """
 	def __init__(self, frame_class, **frame_kwargs):
 		super(FrameBasedInstrument, self).__init__()
 		self._buflen = 1
 		self._queue = FrameQueue(maxsize=self._buflen)
 		self._hb_forced = False
+		self._dlserial = 0
 
 		self.frame_class = frame_class
 		self.frame_kwargs = frame_kwargs
@@ -224,7 +222,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		It is up to the user to ensure that the current aquisition rate is sufficiently slow to not loose samples"""
 		if self._moku is None: raise NotDeployedException()
 		# TODO: rest of the options, handle errors
-		self._moku._stream_start(end=duration)
+		self._dlserial += 1
+		self._moku._stream_start(end = duration, tag = "%04d" % self._dlserial)
 
 	def datalogger_stop(self):
 		""" Stop a recording session previously started with :py:func:`datalogger_start`"""
@@ -244,6 +243,52 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		This is valid both for running sessions and one that has been completed."""
 		if self._moku is None: raise NotDeployedException()
 		return self._moku._stream_status()[1]
+
+	def datalogger_upload(self):
+		""" Load most recently recorded data files from the Moku to the local PC.
+
+		:raises NotDeployedException: if the instrument is not yet operational.
+		:raises InvalidOperationException: if no files are present."""
+		if self._moku is None: raise NotDeployedException()
+		files = self._moku._fs_list('e')
+
+		f1 = "channel-1-%04d" % self._dlserial
+		f2 = "channel-2-%04d" % self._dlserial
+
+		uploaded = 0
+
+		for f in files:
+			for c in [f1, f2]:
+				if f[0].startswith(c):
+					# Data length of zero uploads the whole file
+					self._moku._receive_file('e', f[0], 0)
+					uploaded += 1
+
+		if not uploaded:
+			raise InvalidOperationException("Log files not present")
+		else:
+			log.debug("Uploaded %d files", uploaded)
+
+	def datalogger_upload_all(self):
+		""" Load all recorded data files from the Moku to the local PC.
+
+		:raises NotDeployedException: if the instrument is not yet operational.
+		:raises InvalidOperationException: if no files are present."""
+		if self._moku is None: raise NotDeployedException()
+		files = self._moku._fs_list('e')
+
+		uploaded = 0
+
+		for f in files:
+			if f.startswith("channel-"):
+				# Data length of zero uploads the whole file
+				self._moku._receive_file('e', f, 0)
+				uploaded += 1
+
+		if not uploaded:
+			raise InvalidOperationException("Log files not present")
+		else:
+			log.debug("Uploaded %d files", uploaded)
 
 	def set_running(self, state):
 		prev_state = self._running

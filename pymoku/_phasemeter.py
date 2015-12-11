@@ -43,22 +43,26 @@ class PhaseMeterDataFrame(_frame_instrument.DataFrame):
 
 	def process_channel(self, raw_data):
 		i = 0
-		while raw_data[i:i+16] != ('\xAA' * 4 + '\x55' * 4) * 2:
-			i += 4
+		while raw_data[i:i+8] != '\xAA' * 4 + '\x55' * 4:
+			i += 1
 			if i >= 50: raise Exception("Couldn't find alignment bytes.")
-		i += 16
+		i += 8
 
-		data = unpack('<IIII', raw_data[i:i+16])
+		data = unpack('<IIIIII', raw_data[i:i+24])
 
-		freq = _upsgn(((data[2] & 0xFFFF0000) << 16) | data[0], 48)
-		phase = _upsgn(((data[3] & 0xFFFF0000) << 16) | data[1], 48)
-		amp = data[2] & 0xFFFF
-		count = data[3] & 0xFFFF
-		return freq, phase, amp, count
+		freq = _upsgn(((data[1] & 0xFFFF0000) << 16) | data[0], 48)
+		freq = (freq / 2.0**48) * 500.0 * 10e6
+		phase = _upsgn(((data[1] & 0xFFFF) << 32) | data[2], 48)
+		phase = (phase / 2.0**48) * 500.0
+		count = data[3]
+		I = _upsgn(data[4], 32)
+		Q = _upsgn(data[5], 32)
+
+		return phase, freq, I, Q, count
 
 	def process_complete(self):
-		self.phase1, self.frequency1, self.amplitude1, self.counter1 = self.process_channel(self.raw1)
-		self.phase2, self.frequency2, self.amplitude2, self.counter2 = self.process_channel(self.raw2)
+		self.phase1, self.frequency1, self.I1, self.Q1, self.counter1 = self.process_channel(self.raw1)
+		self.phase2, self.frequency2, self.I2, self.Q2, self.counter2 = self.process_channel(self.raw2)
 
 class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument may not be appropriate when we get streaming going.
 	""" PhaseMeter instrument object. This should be instantiated and attached to a :any:`Moku` instance.
@@ -100,8 +104,8 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		self.control_gain = 100
 		self.control_shift = 0
 		self.integrator_shift = 5
-		self.output_decimation = 500
-		self.output_shift = 7
+		self.output_decimation = 512
+		self.output_shift = 9
 		self.pretrigger = 0
 		self.render_deci = 1.0
 		self.offset = 64

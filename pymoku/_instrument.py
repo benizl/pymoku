@@ -289,7 +289,7 @@ _instr_reg_hdl = [
 	('render_mode',		REG_FILT,	lambda f, old: f if f in [RDR_CUBIC, RDR_MINMAX, RDR_DECI, RDR_DDS ] else None,
 									lambda rval: rval),
 	('framerate',		REG_FRATE,	lambda f, old: _usgn(f * 256.0 / 477.0, 8),
-									lambda rval: rval * 256.0 / 477.0),
+									lambda rval: rval / 256.0 * 477.0),
 	# TODO: Assumes cubic
 	('render_deci',		REG_SCALE,	lambda x, old: (old & 0xFFFF0000) | _usgn(128 * (x - 1), 16),
 									lambda x: (x & 0xFFFF) / 128.0 + 1),

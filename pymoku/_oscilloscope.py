@@ -156,6 +156,20 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.render_deci_alt = self.render_deci
 		self.offset_alt = self.offset
 
+	def set_samplerate(self, samplerate):
+		""" Manually set the sample rate of the instrument.
+
+		The sample rate is automatically calcluated and set in :any:`set_timebase`; setting it through this
+		interface if you've previously set the scales through that will have unexpected results.
+
+		This interface is most useful for datalogging and similar aquisition where one will not be looking
+		at data frames.
+
+		:type samplerate: float; *0 < samplerate < 500MSPS*
+		:param samplerate: Target samples per second. Will get rounded to the nearest allowable unit.
+		"""
+		self.decimation_rate = _OSC_ADC_SMPS / samplerate
+
 	def set_xmode(self, xmode):
 		"""
 		Set rendering mode for the horizontal axis.

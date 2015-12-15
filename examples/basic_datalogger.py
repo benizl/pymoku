@@ -6,7 +6,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.DEBUG)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku('192.168.1.104')
+m = Moku.get_by_name('example')
 
 i = m.discover_instrument()
 
@@ -18,23 +18,29 @@ else:
 	print "Attached to existing Oscilloscope"
 
 i.set_defaults()
-i.decimation_rate = 5e6 # 100Hz
+i.decimation_rate = 5e4 # 10kHz
 i.set_xmode(OSC_ROLL)
 i.commit()
 
-i.datalogger_start(1)
+# TODO: Symbolic constants, simplify this logic in the underlying driver.
+if i.datalogger_status() in  [1, 2, 6]:
+	i.datalogger_stop()
 
-while True:
-	time.sleep(1)
-	s = i.datalogger_status()
-	b = i.datalogger_transferred()
-	print "Status %d (%d samples)" % (s, b)
-	# TODO: Symbolic constants
-	if s == 0 or s == 7:
-		break
+i.datalogger_start(start=10, duration=10, use_sd=False)
 
-i.datalogger_stop()
+try:
+	while True:
+		time.sleep(1)
+		s = i.datalogger_status()
+		b = i.datalogger_transferred()
+		print "Status %d (%d samples)" % (s, b)
+		# TODO: Symbolic constants
+		if s not in [1, 2]:
+			break
 
-i.datalogger_upload()
-
-m.close()
+	i.datalogger_stop()
+	i.datalogger_upload()
+except Exception as e:
+	print e
+finally:
+	m.close()

@@ -18,7 +18,7 @@ else:
 	print "Attached to existing Oscilloscope"
 
 i.set_defaults()
-i.decimation_rate = 5e4 # 10kHz
+i.set_samplerate(10e3) #10ksps
 i.set_xmode(OSC_ROLL)
 i.commit()
 

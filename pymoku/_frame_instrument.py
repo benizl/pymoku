@@ -219,13 +219,13 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		except Empty:
 			raise FrameTimeout()
 
-	def datalogger_start(self, duration=0):
+	def datalogger_start(self, start=0, duration=0, use_sd=True):
 		""" Start recording data with the current settings.
 		It is up to the user to ensure that the current aquisition rate is sufficiently slow to not loose samples"""
 		if self._moku is None: raise NotDeployedException()
 		# TODO: rest of the options, handle errors
 		self._dlserial += 1
-		self._moku._stream_start(end = duration, tag = "%04d" % self._dlserial)
+		self._moku._stream_start(start=start, end=start + duration, tag="%04d" % self._dlserial, use_sd=use_sd)
 
 	def datalogger_stop(self):
 		""" Stop a recording session previously started with :py:func:`datalogger_start`"""
@@ -252,19 +252,20 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		:raises NotDeployedException: if the instrument is not yet operational.
 		:raises InvalidOperationException: if no files are present."""
 		if self._moku is None: raise NotDeployedException()
-		files = self._moku._fs_list('e')
 
 		f1 = "channel-1-%04d" % self._dlserial
 		f2 = "channel-2-%04d" % self._dlserial
 
 		uploaded = 0
 
-		for f in files:
-			for c in [f1, f2]:
-				if f[0].startswith(c):
-					# Data length of zero uploads the whole file
-					self._moku._receive_file('e', f[0], 0)
-					uploaded += 1
+		# Check internal and external storage
+		for mp in ['i', 'e']:
+			for f in self._moku._fs_list(mp):
+				for c in [f1, f2]:
+					if f[0].startswith(c):
+						# Data length of zero uploads the whole file
+						self._moku._receive_file(mp, f[0], 0)
+						uploaded += 1
 
 		if not uploaded:
 			raise InvalidOperationException("Log files not present")

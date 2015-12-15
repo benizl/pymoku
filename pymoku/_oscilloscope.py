@@ -250,12 +250,15 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.scales[self._stateid] = self._calculate_scales()
 		# TODO: Trim scales dictionary, getting rid of old ids
 
+	# Bring in the docstring from the superclass for our docco.
+	commit.__doc__ = _instrument.MokuInstrument.commit.__doc__
+
 	def attach_moku(self, moku):
 		super(Oscilloscope, self).attach_moku(moku)
 
 		self.calibration = dict(self._moku._get_property_section("calibration"))
 
-		log.debug("Oscilloscope Calibration: %s", self.calibration)
+	attach_moku.__doc__ = _instrument.MokuInstrument.attach_moku.__doc__
 
 _osc_reg_hdl = [
 	('source_ch1',		REG_OSC_OUTSEL,		lambda s, old: (old & ~1) | s if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,

@@ -289,7 +289,13 @@ class Moku(object):
 	def _stream_start(self, ch1=True, ch2=True, ftype='csv', use_sd=True, start=0, end=0, tag='0000'):
 		mp = 'e' if use_sd else 'i'
 
-		ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2 }[ftype]
+		if start < 0 or end < start:
+			raise ValueOutOfRangeException("Invalid start/end times: %s/%s" %(str(start), str(end)))
+
+		try:
+			ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2 }[ftype]
+		except KeyError:
+			raise ValueOutOfRangeException("Invalid file type %s" % ftype)
 
 		flags = ftype << 2
 		flags |= int(ch2) << 1
@@ -315,8 +321,7 @@ class Moku(object):
 
 		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", reply[:8])
 
-		if stat != 0:
-			raise StreamException("Stream stop exception %d" % stat)
+		return stat
 
 	def _stream_status(self):
 		pkt = struct.pack("<BBB", 0x53, 0, 3)

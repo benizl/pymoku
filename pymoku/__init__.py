@@ -176,7 +176,6 @@ class Moku(object):
 
 		p, d = '', ''
 		for n in range(nr):
-			print reply, [hex(ord(x)) for x in reply]
 			plen = ord(reply[0]); reply = reply[1:]
 			p = reply[:plen]; reply = reply[plen:]
 			dlen = ord(reply[0]); reply = reply[1:]
@@ -328,9 +327,9 @@ class Moku(object):
 		self._conn.send(pkt)
 		reply = self._conn.recv()
 
-		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", reply[:8])
+		hdr, seq, ae, stat, bt, trem = struct.unpack("<BBBBII", reply[:12])
 
-		return stat, bt
+		return stat, bt, trem
 
 	def _fs_send_generic(self, action, data):
 		pkt = struct.pack("<BIB", 0x49, len(data) + 1, action)

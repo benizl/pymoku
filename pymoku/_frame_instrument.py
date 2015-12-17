@@ -236,15 +236,18 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 	def datalogger_status(self):
 		""" Return the status of the most recent recording session to be started.
 		This is still valid after the stream has stopped, in which case the status will reflect that it's safe
-		to start a new session"""
-		if self._moku is None: raise NotDeployedException()
-		return self._moku._stream_status()[0]
+		to start a new session.
 
-	def datalogger_transferred(self):
-		""" Return the number of samples recorded in the most recent session.
-		This is valid both for running sessions and one that has been completed."""
+		Returns a tuple of state variables:
+
+		- **status** -- Current datalogger state
+		- **logged** -- Number of samples recorded so far. If more than one channel is active, this is the sum of all points across all channels.
+		- **remaining** -- Number of seconds left in current state (e.g. seconds until start if waiting, seconds until end if running). Zero if the state doesn't have a scheduled transition.
+
+		:rtype: int, int, int
+		:return: status, logged, remaining."""
 		if self._moku is None: raise NotDeployedException()
-		return self._moku._stream_status()[1]
+		return self._moku._stream_status()
 
 	def datalogger_upload(self):
 		""" Load most recently recorded data files from the Moku to the local PC.

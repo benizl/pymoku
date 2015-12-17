@@ -31,9 +31,8 @@ i.datalogger_start(start=10, duration=10, use_sd=False)
 try:
 	while True:
 		time.sleep(1)
-		s = i.datalogger_status()
-		b = i.datalogger_transferred()
-		print "Status %d (%d samples)" % (s, b)
+		s, b, trem = i.datalogger_status()
+		print "Status %d (%d samples); %d seconds remaining" % (s, b, trem)
 		# TODO: Symbolic constants
 		if s not in [1, 2]:
 			break

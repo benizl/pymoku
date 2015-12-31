@@ -296,7 +296,8 @@ class Moku(object):
 		except KeyError:
 			raise ValueOutOfRangeException("Invalid file type %s" % ftype)
 
-		flags = ftype << 2
+		# TODO: Support multiple file types simultaneously
+		flags = 1 << (2 + ftype)
 		flags |= int(ch2) << 1
 		flags |= int(ch1)
 
@@ -549,7 +550,7 @@ class Moku(object):
 		If an instrument is found, return a new :any:`MokuInstrument` subclass representing that instrument, ready
 		to be controlled."""
 		import pymoku.instruments
-		i = int(self._get_property_single('system.instrument'))
+		i = int(self._get_property_single('system.instrument').split(',')[0])
 		try:
 			instr = pymoku.instruments.id_table[i]
 		except KeyError:

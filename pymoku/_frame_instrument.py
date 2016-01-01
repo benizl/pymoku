@@ -1,8 +1,10 @@
 
 import select, socket, struct, sys
 import logging, time, threading
+import zmq
+
 from Queue import Queue, Empty
-from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException
+from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException, NoDataException
 
 import _instrument
 
@@ -181,6 +183,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self._queue = FrameQueue(maxsize=self._buflen)
 		self._hb_forced = False
 		self._dlserial = 0
+		self._dlskt = None
 
 		self.frame_class = frame_class
 		self.frame_kwargs = frame_kwargs
@@ -219,19 +222,40 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		except Empty:
 			raise FrameTimeout()
 
-	def datalogger_start(self, start=0, duration=0, use_sd=True):
+	def _dlsub_init(self, tag):
+		ctx = zmq.Context.instance()
+		self._dlskt = ctx.socket(zmq.SUB)
+		self._dlskt.connect("tcp://%s:27186" % self._moku._ip)
+		self._dlskt.setsockopt_string(zmq.SUBSCRIBE, unicode(tag))
+
+
+	def _dlsub_destroy(self):
+		if self._dlskt is not None:
+			self._dlskt.close()
+			self._dlskt = None
+
+
+	def datalogger_start(self, start=0, duration=0, use_sd=True, filetype='csv'):
 		""" Start recording data with the current settings.
 		It is up to the user to ensure that the current aquisition rate is sufficiently slow to not loose samples"""
 		if self._moku is None: raise NotDeployedException()
 		# TODO: rest of the options, handle errors
 		self._dlserial += 1
-		self._moku._stream_start(start=start, end=start + duration, tag="%04d" % self._dlserial, use_sd=use_sd)
+
+		tag = "%04d" % self._dlserial
+
+		if filetype == 'net':
+			self._dlsub_init(tag)
+
+		self._moku._stream_start(start=start, end=start + duration, ftype=filetype, tag=tag, use_sd=use_sd)
 
 	def datalogger_stop(self):
 		""" Stop a recording session previously started with :py:func:`datalogger_start`"""
 		if self._moku is None: raise NotDeployedException()
 		# TODO: Handle errors
 		self._moku._stream_stop()
+
+		self._dlsub_destroy()
 
 	def datalogger_status(self):
 		""" Return the status of the most recent recording session to be started.
@@ -296,6 +320,47 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		else:
 			log.debug("Uploaded %d files", uploaded)
 
+	def datalogger_get_samples(self, timeout=None):
+		""" Returns samples currently being streamed to the network.
+
+		Requires a currently-running data logging session that has been started with the "net"
+		file type.
+
+		This function may return any number of samples, or an empty array in the case of timeout.
+		In the case of a two-channel datalogging session, the sample array returned from any one
+		call will only relate to one channel or the other. The first element of the return tuple
+		will identify the channel.
+
+		The second element of the return tuple is the index of the first data point relative to
+		the whole log. This can be used to identify missing data and/or fill it from on-disk
+		copies if the log is simultaneously hitting the network and disk.
+
+		:type timeout: float
+		:param timeout: Timeout in seconds
+
+		:rtype: int, int, [ float, ... ]
+		:return: The channel number, starting sample index, sample data array
+
+		:raises NoDataException: if the logging session has stopped
+		:raises FrameTimeout: if the timeout expired """
+		if self._dlskt in zmq.select([self._dlskt], [], [], timeout)[0]:
+			tag, data = self._dlskt.recv_multipart()
+			ch = int(tag.split(':')[1]) + 1
+			start = int(tag.split(':')[2])
+
+			smps = len(data) / 4
+			data = struct.unpack("<" + "f" * smps, data)
+
+			# Special value to indicate the stream has finished
+			if ch == 0:
+				raise NoDataException("Data log terminated")
+
+			return ch, start, data
+		else:
+			raise FrameTimeout("Data log timed out")
+
+
+
 	def set_running(self, state):
 		prev_state = self._running
 		super(FrameBasedInstrument, self).set_running(state)
@@ -326,9 +391,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 			log.exception("HB")
 
 	def _frame_worker(self):
-		import zmq
-
-		ctx = zmq.Context()
+		ctx = zmq.Context.instance()
 		skt = ctx.socket(zmq.SUB)
 		skt.connect("tcp://%s:27185" % self._moku._ip)
 		skt.setsockopt_string(zmq.SUBSCRIBE, u'')

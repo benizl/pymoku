@@ -20,6 +20,7 @@ class InvalidOperationException(MokuException): """Can't perform that operation 
 class ValueOutOfRangeException(MokuException): """Invalid value for this operation"""; pass
 class NotDeployedException(MokuException): """Tried to perform an action on an Instrument before it was deployed to a Moku"""; pass
 class FrameTimeout(MokuException): """No new :any:`DataFrame` arrived within the given timeout"""; pass
+class NoDataException(MokuException): """A request has been made for data but none will be generated """; pass
 
 class Moku(object):
 	"""
@@ -292,7 +293,7 @@ class Moku(object):
 			raise ValueOutOfRangeException("Invalid start/end times: %s/%s" %(str(start), str(end)))
 
 		try:
-			ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2 }[ftype]
+			ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2, 'net' : 3 }[ftype]
 		except KeyError:
 			raise ValueOutOfRangeException("Invalid file type %s" % ftype)
 

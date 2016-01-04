@@ -320,7 +320,7 @@ class Moku(object):
 		self._conn.send(pkt)
 		reply = self._conn.recv()
 
-		hdr, seq, ae, stat, bt = struct.unpack("<BBBBi", reply[:8])
+		hdr, seq, ae, stat, bt = struct.unpack("<BBBBQ", reply[:12])
 
 		return stat
 
@@ -329,7 +329,7 @@ class Moku(object):
 		self._conn.send(pkt)
 		reply = self._conn.recv()
 
-		hdr, seq, ae, stat, bt, trem = struct.unpack("<BBBBLL", reply[:12])
+		hdr, seq, ae, stat, bt, trem = struct.unpack("<BBBBQQ", reply[:20])
 
 		return stat, bt, trem
 
@@ -350,7 +350,7 @@ class Moku(object):
 		act, status = struct.unpack("BB", pkt[:2])
 
 		if status:
-			raise NetworkError("File receive error %d", status)
+			raise NetworkError("File receive error %d" % status)
 
 		return pkt[2:]
 
@@ -382,10 +382,10 @@ class Moku(object):
 		self._fs_send_generic(1, pkt)
 
 		reply = self._fs_receive_generic(1)
-		l = struct.unpack("<Q", reply[:4])[0]
+		l = struct.unpack("<Q", reply[:8])[0]
 
 		with open(fname, "wb") as f:
-			f.write(reply[4:])
+			f.write(reply[8:])
 
 	def _fs_chk(self, mp, fname):
 		fname = mp + ":" + fname

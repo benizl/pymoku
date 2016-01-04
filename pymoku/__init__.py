@@ -293,7 +293,7 @@ class Moku(object):
 			raise ValueOutOfRangeException("Invalid start/end times: %s/%s" %(str(start), str(end)))
 
 		try:
-			ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2, 'net' : 3 }[ftype]
+			ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2, 'net' : 3, 'plot' : 4 }[ftype]
 		except KeyError:
 			raise ValueOutOfRangeException("Invalid file type %s" % ftype)
 

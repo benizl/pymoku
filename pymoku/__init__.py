@@ -329,20 +329,20 @@ class Moku(object):
 		self._conn.send(pkt)
 		reply = self._conn.recv()
 
-		hdr, seq, ae, stat, bt, trem = struct.unpack("<BBBBII", reply[:12])
+		hdr, seq, ae, stat, bt, trem = struct.unpack("<BBBBLL", reply[:12])
 
 		return stat, bt, trem
 
 	def _fs_send_generic(self, action, data):
-		pkt = struct.pack("<BIB", 0x49, len(data) + 1, action)
+		pkt = struct.pack("<BQB", 0x49, len(data) + 1, action)
 		pkt += data
 		self._conn.send(pkt)
 
 	def _fs_receive_generic(self, action):
 		reply = self._conn.recv()
 		hdr = reply[0]
-		l = struct.unpack("<I", reply[1:5])[0]
-		pkt = reply[5:]
+		l = struct.unpack("<Q", reply[1:9])[0]
+		pkt = reply[9:]
 
 		if l != len(pkt):
 			raise NetworkError("Unexpected file reply length %d/%d" % (l, len(pkt)))
@@ -364,7 +364,7 @@ class Moku(object):
 		fname = mp + ":" + remotename
 
 		pkt = chr(len(fname)) + fname
-		pkt += struct.pack("<II", 0, len(data))
+		pkt += struct.pack("<QQ", 0, len(data))
 		pkt += data
 
 		self._fs_send_generic(2, pkt)
@@ -377,12 +377,12 @@ class Moku(object):
 		qfname = mp + ":" + fname
 
 		pkt = chr(len(qfname)) + qfname
-		pkt += struct.pack("<II", 0, l)
+		pkt += struct.pack("<QQ", 0, l)
 
 		self._fs_send_generic(1, pkt)
 
 		reply = self._fs_receive_generic(1)
-		l = struct.unpack("<I", reply[:4])[0]
+		l = struct.unpack("<Q", reply[:4])[0]
 
 		with open(fname, "wb") as f:
 			f.write(reply[4:])
@@ -397,7 +397,7 @@ class Moku(object):
 		fname = mp + ":" + fname
 		self._fs_send_generic(4, chr(len(fname)) + fname)
 
-		return struct.unpack("<I", self._fs_receive_generic(4))[0]
+		return struct.unpack("<Q", self._fs_receive_generic(4))[0]
 
 	def _fs_list(self, mp):
 		self._fs_send_generic(5, mp)
@@ -410,17 +410,17 @@ class Moku(object):
 		names = []
 
 		for i in range(n):
-			chk, bl, fl = struct.unpack("<IIB", reply[:9])
-			names.append((reply[9 : fl + 9], chk, bl))
+			chk, bl, fl = struct.unpack("<IQB", reply[:13])
+			names.append((reply[13 : fl + 13], chk, bl))
 
-			reply = reply[fl + 9 :]
+			reply = reply[fl + 13 :]
 
 		return names
 
 	def _fs_free(self, mp):
 		self._fs_send_generic(6, mp)
 
-		t, f = struct.unpack("<LL", self._fs_receive_generic(6))
+		t, f = struct.unpack("<QQ", self._fs_receive_generic(6))
 
 		return t, f
 

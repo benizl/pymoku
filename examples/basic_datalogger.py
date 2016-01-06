@@ -17,25 +17,32 @@ if i is None or i.type != 'oscilloscope':
 else:
 	print "Attached to existing Oscilloscope"
 
-i.set_defaults()
-i.set_samplerate(10e3) #10ksps
-i.set_xmode(OSC_ROLL)
-i.commit()
-
-# TODO: Symbolic constants, simplify this logic in the underlying driver.
-if i.datalogger_status() in  [1, 2, 6]:
-	i.datalogger_stop()
-
-i.datalogger_start(start=10, duration=10, use_sd=False)
-
 try:
+	i.set_defaults()
+	i.set_samplerate(10e3) #10ksps
+	i.set_xmode(OSC_ROLL)
+	i.commit()
+
+	print i.datalogger_status()
+	if i.datalogger_busy():
+		print "Stopping previous session"
+		i.datalogger_stop()
+
+	i.datalogger_start(start=10, duration=10, use_sd=False)
+
 	while True:
 		time.sleep(1)
-		s, b, trem = i.datalogger_status()
-		print "Status %d (%d samples); %d seconds remaining" % (s, b, trem)
+		trems, treme = i.datalogger_remaining()
+		samples = i.datalogger_samples()
+		print "Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme)
 		# TODO: Symbolic constants
-		if s not in [1, 2]:
+		if i.datalogger_completed():
 			break
+
+	e = i.datalogger_error()
+
+	if e:
+		print "Error occured: %s" % e
 
 	i.datalogger_stop()
 	i.datalogger_upload()

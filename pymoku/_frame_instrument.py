@@ -266,12 +266,65 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		- **status** -- Current datalogger state
 		- **logged** -- Number of samples recorded so far. If more than one channel is active, this is the sum of all points across all channels.
-		- **remaining** -- Number of seconds left in current state (e.g. seconds until start if waiting, seconds until end if running). Zero if the state doesn't have a scheduled transition.
+		- **to start** -- Number of seconds until/since start. Time until start is positive, a negative number indicates that the record has started already.
+		- **to end** -- Number of seconds until/since end.
 
-		:rtype: int, int, int
-		:return: status, logged, remaining."""
+		:rtype: int, int, int, int
+		:return: status, logged, to start, to end."""
 		if self._moku is None: raise NotDeployedException()
 		return self._moku._stream_status()
+
+	def datalogger_remaining(self):
+		""" Returns number of seconds from session start and end.
+
+		- **to start** -- Number of seconds until/since start. Time until start is positive, a negative number indicates that the record has started already.
+		- **to end** -- Number of seconds until/since end.
+
+		:rtype: int, int
+		:return: to start, to end
+		d1, d2, start, end = self.datalogger_status()"""
+		return start, end
+
+	def datalogger_samples(self):
+		""" Returns number of samples captures in this datalogging session.
+
+		:rtype: int
+		:returns: sample count"""
+		return self.datalogger_status()[1]
+
+	def datalogger_busy(self):
+		""" Returns the readiness of the datalogger to start a new session.
+
+		The data logger must not be busy before issuing a :any:`datalogger_start`, otherwise
+		an exception will be raised.
+
+		If the datalogger is busy, the time remaining may be queried to see how long it might be
+		until it has finished what it's doing, or it can be forcibly stopped with a call to
+		:any:`datalogger_stop`."""
+		return self.datalogger_status()[0] != 0
+
+	def datalogger_completed(self):
+		""" Returns whether or not the datalogger is expecting to log any more data.
+
+		If the log is completed then the results files are ready to be uploaded or simply
+		read off the SD card. At most one subsequent :any:`datalogger_get_samples` call
+		will return without timeout."""
+		return self.datalogger_status()[0] not in [1, 2]
+
+	def datalogger_error(self):
+		""" Returns a string representing the current error, or *None* if the session is not in error."""
+		code = self.datalogger_status()[0]
+
+		if code in [0, 1, 2, 7]:
+			return None
+		elif code == 3:
+			return "Invalid Parameters for Datalogger Operation"
+		elif code == 4:
+			return "Target Filesystem Full"
+		elif code == 5:
+			return "Session overflowed, sample rate too fast."
+		elif code == 6:
+			return "Tried to start a logging session while one was already running."
 
 	def datalogger_upload(self):
 		""" Load most recently recorded data files from the Moku to the local PC.

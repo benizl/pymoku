@@ -8,9 +8,14 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.DEBUG)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku.get_by_name('example')
+m = Moku('192.168.1.106')#.get_by_name('example')
 
 i = m.discover_instrument()
+
+linespec = {
+	'shape' : 'spline',
+	'width' : '2'
+}
 
 if i is None or i.type != 'oscilloscope':
 	print "No or wrong instrument deployed"
@@ -24,7 +29,7 @@ try:
 	i.commit()
 
 	frame = i.get_frame()
-	print "Plot URL is %s" % ppy.plot_frame(frame)
+	print "Plot URL is %s" % ppy.plot_frame(frame, line=linespec)
 
 finally:
 	m.close()

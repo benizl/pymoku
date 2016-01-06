@@ -20,20 +20,25 @@ if i is None or i.type != 'oscilloscope':
 else:
 	print "Attached to existing Oscilloscope"
 
+linespec = {
+	'shape' : 'spline',
+	'width' : '2'
+}
+
 try:
-i.set_defaults()
-i.set_samplerate(10)
-i.set_xmode(OSC_ROLL)
-i.commit()
+	i.set_defaults()
+	i.set_samplerate(10)
+	i.set_xmode(OSC_ROLL)
+	i.commit()
 
-if i.datalogger_busy():
-	i.datalogger_stop()
+	if i.datalogger_busy():
+		i.datalogger_stop()
 
-pmp.init(m, 'benizl.anu', 'na8qic5nqw', 'kdi5h54dhl', 'v7qd9o6bcq')
+	pmp.stream_init(m, 'benizl.anu', 'na8qic5nqw', 'kdi5h54dhl', 'v7qd9o6bcq', line=linespec)
 
-i.datalogger_start(start=0, duration=60*10, filetype='plot')
+	i.datalogger_start(start=0, duration=60*10, filetype='plot')
 
-print "Plotly URL is: %s" % pmp.stream_url(m)
+	print "Plotly URL is: %s" % pmp.stream_url(m)
 
 	while True:
 		time.sleep(1)

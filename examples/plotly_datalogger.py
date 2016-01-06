@@ -1,7 +1,7 @@
 from pymoku import Moku, MokuException
 from pymoku.instruments import *
 
-import pymoku.plotly as pmp
+import pymoku.plotly_support as pmp
 
 import time, logging, traceback
 
@@ -33,7 +33,7 @@ pmp.init(m, 'benizl.anu', 'na8qic5nqw', 'kdi5h54dhl', 'v7qd9o6bcq')
 
 i.datalogger_start(start=0, duration=60*10, filetype='plot')
 
-print "Plotly URL is: %s" % pmp.url(m)
+print "Plotly URL is: %s" % pmp.stream_url(m)
 
 	while True:
 		time.sleep(1)

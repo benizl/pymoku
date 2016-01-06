@@ -278,21 +278,19 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		:raises NotDeployedException: if the instrument is not yet operational.
 		:raises InvalidOperationException: if no files are present."""
-		if self._moku is None: raise NotDeployedException()
+		import re
 
-		f1 = "channel-1-%04d" % self._dlserial
-		f2 = "channel-2-%04d" % self._dlserial
+		if self._moku is None: raise NotDeployedException()
 
 		uploaded = 0
 
 		# Check internal and external storage
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
-				for c in [f1, f2]:
-					if f[0].startswith(c):
-						# Data length of zero uploads the whole file
-						self._moku._receive_file(mp, f[0], 0)
-						uploaded += 1
+				if re.match("channel-.*-%04d\.[a-z]{3}" % self._dlserial, f[0]):
+					# Data length of zero uploads the whole file
+					self._moku._receive_file(mp, f[0], 0)
+					uploaded += 1
 
 		if not uploaded:
 			raise InvalidOperationException("Log files not present")
@@ -304,16 +302,19 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		:raises NotDeployedException: if the instrument is not yet operational.
 		:raises InvalidOperationException: if no files are present."""
+		import re
+
 		if self._moku is None: raise NotDeployedException()
-		files = self._moku._fs_list('e')
 
 		uploaded = 0
 
-		for f in files:
-			if f.startswith("channel-"):
-				# Data length of zero uploads the whole file
-				self._moku._receive_file('e', f, 0)
-				uploaded += 1
+		for mp in ['e', 'i']:
+			files = self._moku._fs_list(mp)
+			for f in files:
+				if re.match("channel-.*-[a-zA-Z0-9]{4}\.[a-z]{3}", f[0]):
+					# Data length of zero uploads the whole file
+					self._moku._receive_file(mp, f, 0)
+					uploaded += 1
 
 		if not uploaded:
 			raise InvalidOperationException("Log files not present")

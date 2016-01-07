@@ -281,8 +281,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		- **to end** -- Number of seconds until/since end.
 
 		:rtype: int, int
-		:return: to start, to end
-		d1, d2, start, end = self.datalogger_status()"""
+		:return: to start, to end"""
+		d1, d2, start, end = self.datalogger_status()
 		return start, end
 
 	def datalogger_samples(self):

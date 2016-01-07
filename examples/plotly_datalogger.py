@@ -6,7 +6,7 @@ import pymoku.plotly_support as pmp
 import time, logging, traceback
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
-logging.getLogger('pymoku').setLevel(logging.DEBUG)
+logging.getLogger('pymoku').setLevel(logging.INFO)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
 m = Moku.get_by_name('example')
@@ -36,7 +36,7 @@ try:
 
 	pmp.stream_init(m, 'benizl.anu', 'na8qic5nqw', 'kdi5h54dhl', 'v7qd9o6bcq', line=linespec)
 
-	i.datalogger_start(start=0, duration=60*10, filetype='plot')
+	i.datalogger_start(start=10, duration=600, filetype='plot')
 
 	print "Plotly URL is: %s" % pmp.stream_url(m)
 
@@ -53,12 +53,8 @@ try:
 
 	if e:
 		print "Error occured: %s" % e
-
-	i.datalogger_stop()
-	i.datalogger_upload()
-
-except Exception as e:
-	print e
+except Exception:
+	traceback.print_exc()
 finally:
 	i.datalogger_stop()
 	m.close()

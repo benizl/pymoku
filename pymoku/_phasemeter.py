@@ -103,7 +103,7 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		self.init_freq_ch2 = 10 * 10e6
 		self.control_gain = 100
 		self.control_shift = 0
-		self.integrator_shift = 5
+		self.integrator_shift = 0
 		self.output_decimation = 512
 		self.output_shift = 9
 		self.pretrigger = 0
@@ -121,12 +121,12 @@ _pm_reg_hdl = [
 	('init_freq_ch2',		(REG_PM_INITF2_H, REG_PM_INITF2_L),
 											lambda f, old: ((_usgn(f * _PM_FREQSCALE, 48) >> 32) & 0xFFFF, _usgn(f * _PM_FREQSCALE, 48) & 0xFFFFFFFF),
 											lambda rval: ((rval[0] << 32) | rval[1]) / _PM_FREQSCALE),
-	('control_gain',		REG_PM_CGAIN,	lambda f, old: _sgn(f, 8) | (old & ~0xFF),
-											lambda rval: rval & 0xFF), #TODO needs sign extension
-	('control_shift',		REG_PM_CGAIN,	lambda f, old: (_usgn(f, 4) << 12) | (old & ~0xF000),
-											lambda rval: (rval & 0xF000) >> 12),
-	('integrator_shift',	REG_PM_INTSHIFT,lambda f, old: (_usgn(f, 4) << 8) | (old & ~0xF00),
-											lambda rval: (rval >> 8) & 0xF),
+	('control_gain',		REG_PM_CGAIN,	lambda f, old: _sgn(f, 12) | (old & ~0xFFF),
+											lambda rval: _upsgn(rval & 0xFFF, 12)),
+	('control_shift',		REG_PM_CGAIN,	lambda f, old: (_usgn(f, 4) << 20) | (old & ~0xF00000),
+											lambda rval: (rval >> 20) & 0xF),
+	('integrator_shift',	REG_PM_INTSHIFT,lambda f, old: (_usgn(f, 4) << 16) | (old & ~0xF0000),
+											lambda rval: (rval >> 16) & 0xF),
 	('output_decimation',	REG_PM_OUTDEC,	lambda f, old: _usgn(f, 10) | (old & ~0x3FF),
 											lambda rval: rval & 0x3FF),
 	('output_shift',		REG_PM_OUTSHIFT,lambda f, old: (_usgn(f, 4) << 10) | (old & ~0x3C00),

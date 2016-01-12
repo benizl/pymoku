@@ -290,11 +290,17 @@ _instr_reg_hdl = [
 									lambda rval: rval),
 	('framerate',		REG_FRATE,	lambda f, old: _usgn(f * 256.0 / 477.0, 8),
 									lambda rval: rval / 256.0 * 477.0),
-	# TODO: Assumes cubic
+	# Cubic Downsampling accessors
 	('render_deci',		REG_SCALE,	lambda x, old: (old & 0xFFFF0000) | _usgn(128 * (x - 1), 16),
 									lambda x: (x & 0xFFFF) / 128.0 + 1),
 	('render_deci_alt',	REG_SCALE,	lambda x, old: (old & 0x0000FFFF) | _usgn(128 * (x - 1), 16) << 16,
 									lambda x: (int(x) >> 16) / 128.0 + 1),
+	# Direct Downsampling accessors.
+	('render_dds',		REG_SCALE,	lambda x, old: (old & 0xFFFF0000) | _usgn(x - 1, 16),
+									lambda x: (x & 0xFFFF) + 1),
+	('render_dds_alt',	REG_SCALE,	lambda x, old: (old & 0x0000FFFF) | _usgn(x - 1, 16) << 16,
+									lambda x: (int(x) >> 16) + 1),
+
 	('offset',			REG_OFFSET,	lambda x, old: _sgn(x, 32), lambda x: _upsgn(x, 32)),
 	('offset_alt',		REG_OFFSETA,lambda x, old: _sgn(x, 32), lambda x: _upsgn(x, 32)),
 	# TODO Stream Control

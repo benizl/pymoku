@@ -58,6 +58,68 @@ _OSC_BUFLEN			= 2**14
 _OSC_SCREEN_WIDTH	= 1024
 _OSC_FPS			= 10
 
+class VoltsFrame(_frame_instrument.DataFrame):
+	"""
+	Object representing a frame of data in units of Volts. This is the native output format of
+	the :any:`Oscilloscope` instrument and similar.
+
+	This object should not be instantiated directly, but will be returned by a supporting *get_frame*
+	implementation.
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.ch1
+		:annotation: = [CH1_DATA]
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.ch2
+		:annotation: = [CH2_DATA]
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.frameid
+		:annotation: = n
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.VoltsFrame.waveformid
+		:annotation: = n
+	"""
+	def __init__(self, scales):
+		super(VoltsFrame, self).__init__()
+
+		#: Channel 1 data array in units of Volts. Present whether or not the channel is enabled, but the
+		#: contents are undefined in the latter case.
+		self.ch1 = []
+
+		#: Channel 2 data array in units of Volts.
+		self.ch2 = []
+
+		self.scales = scales
+
+	def process_complete(self):
+
+		if self.stateid not in self.scales:
+			log.error("Can't render voltage frame, haven't saved calibration data for state %d", self.stateid)
+			return
+
+		scale1, scale2 = self.scales[self.stateid]
+
+		try:
+			smpls = int(len(self.raw1) / 4)
+			dat = struct.unpack('<' + 'i' * smpls, self.raw1)
+			dat = [ x if x != -0x80000000 else None for x in dat ]
+
+			self.ch1_bits = [ float(x) if x is not None else None for x in dat[:1024] ]
+			self.ch1 = [ x * scale1 if x is not None else None for x in self.ch1_bits]
+
+			smpls = int(len(self.raw2) / 4)
+			dat = struct.unpack('<' + 'i' * smpls, self.raw2)
+			dat = [ x if x != -0x80000000 else None for x in dat ]
+
+			self.ch2_bits = [ float(x) if x is not None else None for x in dat[:1024] ]
+			self.ch2 = [ x * scale2 if x is not None else None for x in self.ch2_bits]
+		except (IndexError, TypeError, struct.error):
+			# If the data is bollocksed, force a reinitialisation on next packet
+			log.exception("Oscilloscope packet")
+			self.frameid = None
+			self.complete = False
+
+		return True
+
 class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator):
 	""" Oscilloscope instrument object. This should be instantiated and attached to a :any:`Moku` instance.
 
@@ -86,7 +148,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		"""Create a new Oscilloscope instrument, ready to be attached to a Moku."""
 		self.scales = {}
 
-		super(Oscilloscope, self).__init__(_frame_instrument.VoltsFrame, scales=self.scales)
+		super(Oscilloscope, self).__init__(VoltsFrame, scales=self.scales)
 		self.id = 1
 		self.type = "oscilloscope"
 		self.calibration = None

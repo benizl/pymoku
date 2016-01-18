@@ -82,12 +82,11 @@ def test_binfile_write(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calc
 
 
 roundtrip_binfile_data = [
-	(1, 1, 1, "", "", "", "", [1], 1, 0, '', [], "", True),
-	(1, 1, 1, "<s32", "", "{ch1}\r\n", "Header\r\n", [1], 1, 0, '', [], "Header\r\n", False),
-	(1, 1, 1, "<s32", "", "{ch1}\r\n", "Header\r\n", [1], 1, 0, '\x00\x00\x00\x00', [[0]], "Header\r\n0\r\n", False),
-
+	(1, 1, 1, "", "", "", "", [1], 1, 0, [''], [], "", True),
+	(1, 1, 1, "<s32", "", "{ch1}\r\n", "Header\r\n", [1], 1, 0, [''], [], "Header\r\n", False),
+	(1, 1, 1, "<s32", "", "{ch1}\r\n", "Header\r\n", [1], 1, 0, ['\x00\x00\x00\x00'], [[0]], "Header\r\n0\r\n", False),
 	(1, 1, 1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
-		"\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF", [[(1, -1.0)],[(1, -1.0)]],
+		["\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF"], [[(1, -1.0)],[(1, -1.0)]],
 		"Header\r\n1,-1.0\r\n1,-1.0\r\n", False), # Multiple records, including partial
 ]
 
@@ -96,8 +95,8 @@ def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, 
 	writer = LIDataFileWriter("test.dat", instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime)
 
 	# Input data format is binary, output format is records
-	if len(din):
-		writer.add_data(din, 1)
+	for d in din:
+		writer.add_data(d, 1)
 
 	writer.finalize()
 

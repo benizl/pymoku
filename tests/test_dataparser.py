@@ -2,7 +2,7 @@
 
 
 import pytest
-import sys
+import sys, os
 sys.path.append('..')
 
 import logging
@@ -29,8 +29,10 @@ binfmt_data = [
 
 @pytest.mark.parametrize("fmt,din,expected", binfmt_data)
 def test_binfmts(fmt, din, expected):
-	dut = LIDataParser(fmt, "", [1, 1])
-	dut.parse(din, 0)
+	dut = LIDataParser(1, fmt, "", "", "", 0, 0, [1, 1])
+	# Use the internal parser method so the records don't get processed and removed before
+	# we've had a chance to check them.
+	dut._parse(din, 0)
 
 	assert dut.records[0] == expected
 
@@ -51,9 +53,9 @@ procfmt_data = [
 	("<s32:f32", "+1+1-2:-1-1+2", "\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF", [(1, -1.0),(1, -1.0)]), # Multiple records, including partial
 ]
 
-@pytest.mark.parametrize("_bin,fmt,din,expected", procfmt_data)
-def test_procfmts(_bin, fmt, din, expected):
-	dut = LIDataParser(_bin, fmt, [2, 2])
+@pytest.mark.parametrize("_bin,proc,din,expected", procfmt_data)
+def test_procfmts(_bin, proc, din, expected):
+	dut = LIDataParser(1, _bin, proc, "", "", 0, 0, [2, 2])
 	dut.parse(din, 0)
 
 	assert dut.processed[0] == expected
@@ -80,6 +82,8 @@ def test_binfile_write(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calc
 	with open("test.dat") as f:
 		assert f.read() == expected
 
+	os.remove("test.dat")
+
 
 roundtrip_binfile_data = [
 	(1, 1, 1, "", "", "", "", [1], 1, 0, [''], [], "", True),
@@ -88,6 +92,9 @@ roundtrip_binfile_data = [
 	(1, 1, 1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
 		["\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF"], [[(1, -1.0)],[(1, -1.0)]],
 		"Header\r\n1,-1.0\r\n1,-1.0\r\n", False), # Multiple records, including partial
+	(1, 1, 1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
+		["\x01\x00\x00\x00\x00\x00\x80", "\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF"], [[(1, -1.0)],[(1, -1.0)]],
+		"Header\r\n1,-1.0\r\n1,-1.0\r\n", False), # same again, split data
 ]
 
 @pytest.mark.parametrize("instr,instrv,nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,din,dout,csv,supposedtobeborked", roundtrip_binfile_data)
@@ -120,8 +127,32 @@ def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, 
 		assert reader.readall() == dout
 		assert reader.to_csv() == csv
 
+	os.remove("test.dat")
 
 # TODO: Two-channel tests
+
+
+stream_csv_data = [
+	(1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
+		["\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF"],
+		"Header\r\n1,-1.0\r\n1,-1.0\r\n"), # Multiple records, including partial
+	(1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
+		["\x01\x00\x00\x00\x00\x00", "\x80\xBF\x02\x00\x00\x00","\x00\x00\x80\xBF\x00\x80\xBF"],
+		"Header\r\n1,-1.0\r\n2,-1.0\r\n"), # same again, split data, non-record aligned
+]
+
+@pytest.mark.parametrize("nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,din,csv", stream_csv_data)
+def test_stream_csv(nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime, din, csv):
+	parser = LIDataParser(nch, binstr, procstr, fmtstr, hdrstr, timestep, starttime, calcoeffs)
+
+	for d in din:
+		parser.parse(d, 0)
+		parser.dump_csv("test.dat")
+
+	with open("test.dat") as f:
+		assert f.read() == csv
+
+	os.remove("test.dat")
 
 if __name__ == '__main__':
 	pytest.main()

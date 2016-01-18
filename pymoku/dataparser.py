@@ -45,30 +45,8 @@ class LIDataFileReader(object):
 
 		for i in range(self.nch): self.records.append([])
 
-		self.fmtdict = {
-			'T' : datetime.datetime.fromtimestamp(self.starttime).strftime('%c'), # TODO: Nicely formatted datetime string
-			't' : 0,
-			'd' : self.deltat,
-			'n' : 0,
-		}
+		self.parser = LIDataParser(self.nch, self.rec, self.proc, self.fmt, self.hdr, self.deltat, self.starttime, self.cal[:])
 
-		self.dout = self.hdr.format(**self.fmtdict)
-
-		self.parser = LIDataParser(self.rec, self.proc, self.cal[:])
-
-	def _format_records(self):
-		log.debug(self.parser.processed)
-
-		if self.nch == 1:
-			for rec1 in self.parser.processed[0]:
-				self.fmtdict['n'] += 1
-				self.fmtdict['t'] += self.fmtdict['d']
-				self.dout += self.fmt.format(ch1=rec1, ch2=None, **self.fmtdict)
-		else:
-			for rec1, rec2 in zip(*self.parser.processed):
-				self.fmtdict['n'] += 1
-				self.fmtdict['t'] += self.fmtdict['d']
-				self.dout += self.fmt.format(ch1=rec1, ch2=rec2, **self.fmtdict)
 
 	def _load_chunk(self):
 
@@ -114,17 +92,13 @@ class LIDataFileReader(object):
 
 		return ret
 
-	def to_csv(self, fname=None):
-		self._format_records()
-
-		if not fname:
-			return self.dout
-
-		with open(fname, 'w') as f:
-			f.write(self.dout)
-
 	def close(self):
 		self.file.close()
+
+	def to_csv(self, fname=None):
+		# Ensure that we've parsed all the file data chunks
+		self.readall()
+		return self.parser.dump_csv(fname)
 
 	def __iter__(self):
 		return self
@@ -250,7 +224,7 @@ class LIDataParser(object):
 
 		return bits == '1'
 
-	def __init__(self, binstr, procstr, calcoeffs):
+	def __init__(self, nch, binstr, procstr, fmtstr, hdrstr, deltat, starttime, calcoeffs):
 
 		if not len(binstr):
 			raise InvalidFormatException("Can't use empty binary record string")
@@ -266,7 +240,18 @@ class LIDataParser(object):
 		for ch in range(2):
 			self.procfmt.append(LIDataParser._parse_procstr(procstr, calcoeffs[ch]))
 
+		self.nch = nch
 		self.dcache = ['', '']
+
+		self.fmtdict = {
+			'T' : datetime.datetime.fromtimestamp(starttime).strftime('%c'), # TODO: Nicely formatted datetime string
+			't' : 0,
+			'd' : deltat,
+			'n' : 0,
+		}
+		self.fmt = fmtstr
+
+		self.dout = hdrstr.format(**self.fmtdict)
 
 		self.records = [[], []]
 		self.processed = [[], []]
@@ -298,8 +283,53 @@ class LIDataParser(object):
 				else:
 					self.processed[ch].append(rec[0])
 
+		# Remove all processed records
+		self.records = [[],[]]
 
-	def parse(self, data, ch):
+
+	def _format_records(self):
+		if self.nch == 1:
+			for rec1 in self.processed[0]:
+				self.fmtdict['n'] += 1
+				self.fmtdict['t'] += self.fmtdict['d']
+				self.dout += self.fmt.format(ch1=rec1, ch2=None, **self.fmtdict)
+
+			return len(self.processed[0])
+		else:
+			i = 0
+			for rec1, rec2 in zip(*self.processed):
+				self.fmtdict['n'] += 1
+				self.fmtdict['t'] += self.fmtdict['d']
+				self.dout += self.fmt.format(ch1=rec1, ch2=rec2, **self.fmtdict)
+				i += 1
+
+			return i
+
+
+	def dump_csv(self, fname=None):
+		n_formatted = self._format_records()
+
+		# Clear out the raw and processed records so we can stream
+		# chunk at a time
+		for ch in self.processed:
+			for i in range(n_formatted):
+				try:
+					ch.pop(0)
+				except IndexError:
+					break
+
+		if not fname:
+			d = self.dout
+			self.dout = ''
+			return d
+
+		with open(fname, 'a') as f:
+			f.write(self.dout)
+
+		self.dout = ''
+
+
+	def _parse(self, data, ch):
 		# Manipulation is done on a string of ASCII '0' and '1'. Could swap this
 		# out for bitarray primitives if performance turns out to be a problem.
 		# This is all hard-coded little-endian; we reverse the bitstrings at the
@@ -349,4 +379,7 @@ class LIDataParser(object):
 		if len(self._currecord[ch]) and not len(self._currfmt[ch]):
 			self.records[ch].append(self._currecord[ch])
 
+
+	def parse(self, data, ch):
+		self._parse(data, ch)
 		self._process_records()

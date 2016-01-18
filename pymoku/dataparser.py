@@ -57,10 +57,18 @@ class LIDataFileReader(object):
 		self.parser = LIDataParser(self.rec, self.proc, self.cal[:])
 
 	def _format_records(self):
-		for rec1, rec2 in zip(*self.parser.processed):
-			self.fmtdict['n'] += 1
-			self.fmtdict['t'] += self.fmtdict['d']
-			self.dout += self.fmt.format(ch1=rec1, ch2=rec2, **self.fmtdict)
+		log.debug(self.parser.processed)
+
+		if self.nch == 1:
+			for rec1 in self.parser.processed[0]:
+				self.fmtdict['n'] += 1
+				self.fmtdict['t'] += self.fmtdict['d']
+				self.dout += self.fmt.format(ch1=rec1, ch2=None, **self.fmtdict)
+		else:
+			for rec1, rec2 in zip(*self.parser.processed):
+				self.fmtdict['n'] += 1
+				self.fmtdict['t'] += self.fmtdict['d']
+				self.dout += self.fmt.format(ch1=rec1, ch2=rec2, **self.fmtdict)
 
 	def _load_chunk(self):
 
@@ -106,7 +114,7 @@ class LIDataFileReader(object):
 
 		return ret
 
-	def write(self, fname=None):
+	def to_csv(self, fname=None):
 		self._format_records()
 
 		if not fname:

@@ -82,16 +82,17 @@ def test_binfile_write(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calc
 
 
 roundtrip_binfile_data = [
-	(1, 1, 1, "", "", "", "", [1], 1, 0, '', [], True),
-	(1, 1, 1, "<s32", "", "{ch1[0]}\r\n", "Header", [1], 1, 0, '', [], False),
-	(1, 1, 1, "<s32", "", "{ch1[0]}\r\n", "Header", [1], 1, 0, '\x00\x00\x00\x00', [[0]], False),
+	(1, 1, 1, "", "", "", "", [1], 1, 0, '', [], "", True),
+	(1, 1, 1, "<s32", "", "{ch1}\r\n", "Header\r\n", [1], 1, 0, '', [], "Header\r\n", False),
+	(1, 1, 1, "<s32", "", "{ch1}\r\n", "Header\r\n", [1], 1, 0, '\x00\x00\x00\x00', [[0]], "Header\r\n0\r\n", False),
 
-	(1, 1, 1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]}\r\n", "Header", [1], 1, 0,
-		"\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF", [[(1, -1.0)],[(1, -1.0)]], False), # Multiple records, including partial
+	(1, 1, 1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
+		"\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF", [[(1, -1.0)],[(1, -1.0)]],
+		"Header\r\n1,-1.0\r\n1,-1.0\r\n", False), # Multiple records, including partial
 ]
 
-@pytest.mark.parametrize("instr,instrv,nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,din,dout,supposedtobeborked", roundtrip_binfile_data)
-def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime, din, dout, supposedtobeborked):
+@pytest.mark.parametrize("instr,instrv,nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,din,dout,csv,supposedtobeborked", roundtrip_binfile_data)
+def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime, din, dout, csv, supposedtobeborked):
 	writer = LIDataFileWriter("test.dat", instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime)
 
 	# Input data format is binary, output format is records
@@ -118,9 +119,10 @@ def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, 
 		assert reader.cal == calcoeffs
 
 		assert reader.readall() == dout
+		assert reader.to_csv() == csv
 
 
-# TODO: Test output all the way to CSV
+# TODO: Two-channel tests
 
 if __name__ == '__main__':
 	pytest.main()

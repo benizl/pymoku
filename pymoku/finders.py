@@ -72,7 +72,7 @@ class BonjourFinder(object):
 			resolve_sdRef.close()
 
 
-	def find_all(self, protocol_version='5', timeout=5):
+	def find_all(self, protocol_version='6', timeout=5):
 		self.pversion = protocol_version
 		self.timeout = timeout
 		self.moku_list = []

@@ -9,7 +9,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.DEBUG)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku('192.168.1.106')
+m = Moku.get_by_name('example')
 
 i = m.discover_instrument()
 

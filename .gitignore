@@ -3,3 +3,4 @@ pymoku.egg-info
 doc/_build
 .DS_Store
 build/
+tests/test.dat

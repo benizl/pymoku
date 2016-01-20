@@ -32,9 +32,10 @@ def test_binfmts(fmt, din, expected):
 	dut = LIDataParser(1, fmt, "", "", "", 0, 0, [1, 1])
 	# Use the internal parser method so the records don't get processed and removed before
 	# we've had a chance to check them
-	dut._parse(din, 0)
 
-	assert dut.records[0] == expected
+	for ch in [0, 1]:
+		dut._parse(din, ch)
+		assert dut.records[ch] == expected
 
 procfmt_data = [
 	("<s32", "", "\x01\x00\x00\x00", [1]), # No-op, single element tuple
@@ -56,9 +57,10 @@ procfmt_data = [
 @pytest.mark.parametrize("_bin,proc,din,expected", procfmt_data)
 def test_procfmts(_bin, proc, din, expected):
 	dut = LIDataParser(1, _bin, proc, "", "", 0, 0, [2, 2])
-	dut.parse(din, 0)
 
-	assert dut.processed[0] == expected
+	for ch in [0, 1]:
+		dut.parse(din, ch)
+		assert dut.processed[ch] == expected
 
 
 # File contents are hand-crafted, hence the small number of test cases!
@@ -68,14 +70,15 @@ write_binfile_data = [
 	(1, 1, 1, "A", "B", "C", "D", [1], 1, 0, '',
 		'LI1\x24\x00\x01\x01\x01\x00\x00\x00\x80\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0\x3F\x01\x00A\x01\x00B\x01\x00C\x01\x00D'),
 	(1, 1, 1, "", "", "", "", [1], 1, 0, '\x00\x00\x00\x00',
-		'LI1\x20\x00\x01\x01\x01\x00\x00\x00\x80\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00'),
+		'LI1\x20\x00\x01\x01\x01\x00\x00\x00\x80\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x01\x04\x00\x00\x00\x00\x00'),
 ]
 
 @pytest.mark.parametrize("instr,instrv,nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,data,expected", write_binfile_data)
 def test_binfile_write(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime, data, expected):
 	writer = LIDataFileWriter("test.dat", instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime)
 	if len(data):
-		writer.add_data(data, 0)
+		for ch in [0, 1]:
+			writer.add_data(data, ch)
 
 	writer.finalize()
 
@@ -95,6 +98,9 @@ roundtrip_binfile_data = [
 	(1, 1, 1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
 		["\x01\x00\x00\x00\x00\x00\x80", "\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF"], [[(1, -1.0)],[(1, -1.0)]],
 		"Header\r\n1,-1.0\r\n1,-1.0\r\n", False), # same again, split data
+	(1, 1, 2, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]},{ch2[0]},{ch2[1]}\r\n", "Header\r\n", [1, 1], 1, 0,
+		["\x01\x00\x00\x00\x00\x00\xA0\xC0\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF"], [[(1, -5.0),(1, -5.0)],[(1, -1.0),(1, -1.0)]],
+		"Header\r\n1,-5.0,1,-5.0\r\n1,-1.0,1,-1.0\r\n", False), # Two channels
 ]
 
 @pytest.mark.parametrize("instr,instrv,nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,din,dout,csv,supposedtobeborked", roundtrip_binfile_data)
@@ -103,7 +109,8 @@ def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, 
 
 	# Input data format is binary, output format is records
 	for d in din:
-		writer.add_data(d, 0)
+		for ch in range(nch):
+			writer.add_data(d, ch)
 
 	writer.finalize()
 
@@ -143,6 +150,9 @@ stream_csv_data = [
 	(1, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]}\r\n", "Header\r\n", [1], 1, 0,
 		["\x01\x00\x00\x00\x00\x00", "\x80\xBF\x02\x00\x00\x00","\x00\x00\x80\xBF\x00\x80\xBF"],
 		"Header\r\n1,-1.0\r\n2,-1.0\r\n"), # same again, split data, non-record aligned
+	(2, "<s32:f32", "+1+1-2:-1-1+2", "{ch1[0]},{ch1[1]},{ch2[0]},{ch2[1]}\r\n", "Header\r\n", [1], 1, 0,
+		["\x01\x00\x00\x00\x00\x00", "\x80\xBF\x02\x00\x00\x00","\x00\x00\x80\xBF\x00\x80\xBF"],
+		"Header\r\n1,-1.0,1,-1.0\r\n2,-1.0,2,-1.0\r\n"), # Two channels
 ]
 
 @pytest.mark.parametrize("nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,din,csv", stream_csv_data)
@@ -153,7 +163,9 @@ def test_stream_csv(nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, s
 	except OSError: pass
 
 	for d in din:
-		parser.parse(d, 0)
+		for ch in range(nch):
+			parser.parse(d, ch)
+
 		parser.dump_csv("test.csv")
 
 	with open("test.csv") as f:

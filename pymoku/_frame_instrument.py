@@ -293,7 +293,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		# Check internal and external storage
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
-				if re.match("channel-%04d\.[a-z]{2,3}" % self._dlserial, f[0]):
+				if re.match("channel-%04d-.*\.[a-z]{2,3}" % self._dlserial, f[0]):
 					# Data length of zero uploads the whole file
 					self._moku._receive_file(mp, f[0], 0)
 					uploaded += 1

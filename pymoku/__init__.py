@@ -286,14 +286,14 @@ class Moku(object):
 		return r[0][1]
 
 
-	def _stream_start(self, ch1=True, ch2=True, ftype='csv', use_sd=True, start=0, end=0, tag='0000'):
+	def _stream_start(self, ch1, ch2, start, end, timestep, tag, binstr, procstr, fmtstr, hdrstr, ftype='csv', use_sd=True):
 		mp = 'e' if use_sd else 'i'
 
 		if start < 0 or end < start:
 			raise ValueOutOfRangeException("Invalid start/end times: %s/%s" %(str(start), str(end)))
 
 		try:
-			ftype = { 'bin' : 0, 'csv' : 1, 'raw' : 2, 'net' : 3, 'plot' : 4 }[ftype]
+			ftype = { 'bin' : 0, 'csv' : 1, 'net' : 3, 'plot' : 4 }[ftype]
 		except KeyError:
 			raise ValueOutOfRangeException("Invalid file type %s" % ftype)
 
@@ -304,7 +304,15 @@ class Moku(object):
 
 		pkt = struct.pack("<BBB", 0x53, 0, 1) #TODO: Proper sequence number
 		pkt += tag + mp
-		pkt += struct.pack("<IIB", start, end, flags)
+		pkt += struct.pack("<IIBf", start, end, flags, timestep)
+		pkt += struct.pack("<H", len(binstr))
+		pkt += binstr
+		pkt += struct.pack("<H", len(procstr))
+		pkt += procstr
+		pkt += struct.pack("<H", len(fmtstr))
+		pkt += fmtstr
+		pkt += struct.pack("<H", len(hdrstr))
+		pkt += hdrstr
 
 		self._conn.send(pkt)
 		reply = self._conn.recv()

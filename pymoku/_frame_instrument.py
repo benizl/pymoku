@@ -79,7 +79,6 @@ class DataFrame(object):
 
 	def add_packet(self, packet):
 
-		log.debug("Packet: %s", packet)
 		hdr_len = 13
 		if len(packet) <= hdr_len:
 			log.warning("Corrupt frame recevied")
@@ -132,6 +131,11 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		self.frame_class = frame_class
 		self.frame_kwargs = frame_kwargs
+
+		self.binstr = ''
+		self.procstr = ''
+		self.fmtstr = ''
+		self.hdrstr = ''
 
 	def flush(self):
 		""" Clear the Frame Buffer.
@@ -192,7 +196,12 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if filetype == 'net':
 			self._dlsub_init(tag)
 
-		self._moku._stream_start(start=start, end=start + duration, ftype=filetype, tag=tag, use_sd=use_sd)
+		if not all([ len(s) for s in [self.binstr, self.procstr, self.fmtstr, self.hdrstr]]):
+			raise InvalidOperationException("Instrument currently doesn't support data logging")
+
+		self._moku._stream_start(ch1=True, ch2=False, start=start, end=start + duration, timestep=self.timestep,
+			binstr=self.binstr, procstr=self.procstr, fmtstr=self.fmtstr, hdrstr=self.hdrstr,
+			ftype=filetype, tag=tag, use_sd=use_sd)
 
 	def datalogger_stop(self):
 		""" Stop a recording session previously started with :py:func:`datalogger_start`"""
@@ -285,7 +294,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		# Check internal and external storage
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
-				if re.match("channel-.*-%04d\.[a-z]{3}" % self._dlserial, f[0]):
+				if re.match("channel-%04d\.[a-z]{2,3}" % self._dlserial, f[0]):
 					# Data length of zero uploads the whole file
 					self._moku._receive_file(mp, f[0], 0)
 					uploaded += 1

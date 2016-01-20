@@ -153,6 +153,12 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.type = "oscilloscope"
 		self.calibration = None
 
+		self.binstr = "<s32"
+		self.procstr = "*C"
+		self.fmtstr = "{t},{ch1:f},{ch2:f}\r\n"
+		self.hdrstr = "Moku:Lab Data Logger\r\nStart,{T}\r\nSample Rate,{t}\r\nTime,Channel 1,Channel 2\r\n"
+		self.timestep = 1
+
 	def _optimal_decimation(self, t1, t2):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalADCDecimation
 		ts = abs(t1 - t2)
@@ -192,6 +198,15 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# For now, only support viewing the whole captured buffer
 		#return buffer_offset * 4
 
+	def _update_datalogger_params(self):
+		samplerate = _OSC_ADC_SMPS / self.decimation_rate
+		self.timestep = 1 / samplerate
+
+		if self.ain_mode == _OSC_AIN_DECI:
+			self.procstr = "*C/{:f}".format(self.decimation_rate)
+		else:
+			self.procstr = "*C"
+
 	def set_timebase(self, t1, t2):
 		""" Set the left- and right-hand span for the time axis.
 		Units are seconds relative to the trigger point.
@@ -218,6 +233,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.render_deci_alt = self.render_deci
 		self.offset_alt = self.offset
 
+		self._update_datalogger_params()
+
 	def set_samplerate(self, samplerate):
 		""" Manually set the sample rate of the instrument.
 
@@ -231,6 +248,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:param samplerate: Target samples per second. Will get rounded to the nearest allowable unit.
 		"""
 		self.decimation_rate = _OSC_ADC_SMPS / samplerate
+		self._update_datalogger_params()
 
 	def set_xmode(self, xmode):
 		"""
@@ -249,6 +267,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:param state: Select Precision Mode
 		:type state: bool """
 		self.ain_mode = _OSC_AIN_DECI if state else _OSC_AIN_DDS
+		self._update_datalogger_params()
 
 	def set_trigger(self, source, edge, level, hysteresis=0, hf_reject=False, mode=OSC_TRIG_AUTO):
 		""" Sets trigger source and parameters.

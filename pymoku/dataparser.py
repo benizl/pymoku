@@ -41,6 +41,12 @@ class LIDataFileReader(object):
 		hdrlen = struct.unpack("<H", f.read(2))[0]
 		self.hdr = f.read(hdrlen); log.debug("Hdr %s (%d)", self.hdr, hdrlen)
 
+		# Assume the last line of the CSV header block is the column headers
+		try:
+			self.headers = [ s.strip() for s in self.hdr.split('\r\n') if len(s) ][-1].split(',')
+		except IndexError:
+			self.headers = []
+
 		log.debug("NCH: %d INSTR: %d INSTRV: %d DT: %d", self.nch, self.instr, self.instrv, self.deltat)
 		log.debug("B: %s P: %s F: %s H: %s", self.rec, self.proc, self.fmt, self.hdr)
 
@@ -52,11 +58,11 @@ class LIDataFileReader(object):
 		self.parser = LIDataParser(self.nch, self.rec, self.proc, self.fmt, self.hdr, self.deltat, self.starttime, self.cal[:])
 
 
-	def _load_chunk(self):
+	def _parse_chunk(self):
 
 		dhdr = self.file.read(3)
 		if len(dhdr) != 3:
-			return False
+			return None
 
 		ch, _len = struct.unpack("<BH", dhdr)
 
@@ -66,13 +72,26 @@ class LIDataFileReader(object):
 			raise InvalidFileException("Unexpected EOF while reading data")
 
 		self.parser.parse(d, ch)
+
+		return ch
+
+	def _process_chunk(self):
+		ch = self._parse_chunk()
+
+		if ch is None:
+			return False
+
 		self.records[ch].extend(self.parser.processed[ch])
+
+		# Now that we've copied the records in to our own storage, free them from
+		# the parser.
+		self.parser.clear_processed()
 
 		return True
 
 	def read(self):
 		while not all([ len(r) >= 1 for r in self.records]):
-			if not self._load_chunk():
+			if not self._process_chunk():
 				break
 
 		# Make sure we have matched samples for all channels
@@ -97,12 +116,13 @@ class LIDataFileReader(object):
 		self.file.close()
 
 	def to_csv(self, fname):
+		print "To CSV"
 		try: os.remove(fname)
 		except OSError: pass
-
+		print "Chunk start"
 		# Don't actually care about the chunk contents, just that it's been loaded
-		for i, chunk in enumerate(self):
-			log.debug("C %d", i)
+		while self._parse_chunk() is not None:
+			print len(self.parser.processed[0])
 			self.parser.dump_csv(fname)
 
 	def __iter__(self):
@@ -316,15 +336,7 @@ class LIDataParser(object):
 
 	def dump_csv(self, fname=None):
 		n_formatted = self._format_records()
-
-		# Clear out the raw and processed records so we can stream
-		# chunk at a time
-		for ch in self.processed:
-			for i in range(n_formatted):
-				try:
-					ch.pop(0)
-				except IndexError:
-					break
+		self.clear_processed(n_formatted)
 
 		if not fname:
 			d = self.dout
@@ -336,6 +348,18 @@ class LIDataParser(object):
 
 		self.dout = ''
 
+	def clear_processed(self, _len=None):
+		if _len is None:
+			self.processed = [[], []]
+		else:
+			# Clear out the raw and processed records so we can stream
+			# chunk at a time
+			for ch in self.processed:
+				for i in range(_len):
+					try:
+						ch.pop(0)
+					except IndexError:
+						break
 
 	def _parse(self, data, ch):
 		# Manipulation is done on a string of ASCII '0' and '1'. Could swap this

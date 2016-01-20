@@ -19,7 +19,7 @@ else:
 
 try:
 	i.set_defaults()
-	i.set_samplerate(10e3) #10ksps
+	i.set_samplerate(100) #10ksps
 	i.set_xmode(OSC_ROLL)
 	i.commit()
 
@@ -28,7 +28,7 @@ try:
 		print "Stopping previous session"
 		i.datalogger_stop()
 
-	i.datalogger_start(start=10, duration=10, use_sd=False)
+	i.datalogger_start(start=0, duration=600, use_sd=True, filetype='bin')
 
 	while True:
 		time.sleep(1)

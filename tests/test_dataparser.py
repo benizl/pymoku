@@ -125,9 +125,13 @@ def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, 
 		assert reader.cal == calcoeffs
 
 		assert reader.readall() == dout
-		assert reader.to_csv() == csv
 
-	os.remove("test.dat")
+		# No CSV will get written if there's no output data (not even header)
+		if len(dout) > 0:
+			# Reinitialise the reader from the beginning of the data file
+			reader = LIDataFileReader("test.dat")
+			reader.to_csv("test.csv")
+			assert open("test.csv").read() == csv
 
 # TODO: Two-channel tests
 
@@ -145,14 +149,17 @@ stream_csv_data = [
 def test_stream_csv(nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime, din, csv):
 	parser = LIDataParser(nch, binstr, procstr, fmtstr, hdrstr, timestep, starttime, calcoeffs)
 
+	try: os.remove("test.csv")
+	except OSError: pass
+
 	for d in din:
 		parser.parse(d, 0)
-		parser.dump_csv("test.dat")
+		parser.dump_csv("test.csv")
 
-	with open("test.dat") as f:
+	with open("test.csv") as f:
 		assert f.read() == csv
 
-	os.remove("test.dat")
+	os.remove("test.csv")
 
 if __name__ == '__main__':
 	pytest.main()

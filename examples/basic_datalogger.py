@@ -28,7 +28,7 @@ try:
 		print "Stopping previous session"
 		i.datalogger_stop()
 
-	i.datalogger_start(start=0, duration=600, use_sd=True, filetype='bin')
+	i.datalogger_start(start=0, duration=10, use_sd=True, ch1=True, ch2=True, filetype='csv')
 
 	while True:
 		time.sleep(1)

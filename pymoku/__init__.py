@@ -286,8 +286,7 @@ class Moku(object):
 		return r[0][1]
 
 
-	def _stream_start(self, ch1, ch2, start, end, timestep, tag, binstr, procstr, fmtstr, hdrstr, ftype='csv', use_sd=True):
-		from datetime import datetime
+	def _stream_start(self, ch1, ch2, start, end, timestep, tag, binstr, procstr, fmtstr, hdrstr, fname, ftype='csv', use_sd=True):
 		mp = 'e' if use_sd else 'i'
 
 		if start < 0 or end < start:
@@ -302,8 +301,6 @@ class Moku(object):
 		flags = 1 << (2 + ftype)
 		flags |= int(ch2) << 1
 		flags |= int(ch1)
-
-		fname = datetime.now().strftime("datalog-" + tag + "-%Y-%m-%d-%H:%M")
 
 		pkt = struct.pack("<BBB", 0x53, 0, 1) #TODO: Proper sequence number
 		pkt += tag + mp

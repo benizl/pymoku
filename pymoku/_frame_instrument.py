@@ -183,14 +183,17 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 			self._dlskt = None
 
 
-	def datalogger_start(self, start=0, duration=0, use_sd=True, filetype='csv'):
+	def datalogger_start(self, start=0, duration=0, use_sd=True, ch1=True, ch2=False, filetype='csv'):
 		""" Start recording data with the current settings.
 		It is up to the user to ensure that the current aquisition rate is sufficiently slow to not loose samples"""
+		from datetime import datetime
 		if self._moku is None: raise NotDeployedException()
 		# TODO: rest of the options, handle errors
 		self._dlserial += 1
 
 		tag = "%04d" % self._dlserial
+
+		fname = datetime.now().strftime("datalog-" + tag + "-%Y-%m-%d-%H-%M")
 
 		if filetype == 'net':
 			self._dlsub_init(tag)
@@ -198,9 +201,9 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if not all([ len(s) for s in [self.binstr, self.procstr, self.fmtstr, self.hdrstr]]):
 			raise InvalidOperationException("Instrument currently doesn't support data logging")
 
-		self._moku._stream_start(ch1=True, ch2=False, start=start, end=start + duration, timestep=self.timestep,
+		self._moku._stream_start(ch1=ch1, ch2=ch2, start=start, end=start + duration, timestep=self.timestep,
 			binstr=self.binstr, procstr=self.procstr, fmtstr=self.fmtstr, hdrstr=self.hdrstr,
-			ftype=filetype, tag=tag, use_sd=use_sd)
+			fname=fname, ftype=filetype, tag=tag, use_sd=use_sd)
 
 	def datalogger_stop(self):
 		""" Stop a recording session previously started with :py:func:`datalogger_start`"""
@@ -293,7 +296,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		# Check internal and external storage
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
-				if re.match("channel-%04d-.*\.[a-z]{2,3}" % self._dlserial, f[0]):
+				if re.match("datalog-%04d-.*\.[a-z]{2,3}" % self._dlserial, f[0]):
 					# Data length of zero uploads the whole file
 					self._moku._receive_file(mp, f[0], 0)
 					uploaded += 1

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import time, datetime, math
+import os, time, datetime, math
 import logging
 import re, struct
 
@@ -25,17 +25,21 @@ class LIDataFileReader(object):
 		pkthdr_len = struct.unpack("<H", f.read(2))[0]
 		self.nch, self.instr, self.instrv, self.deltat, self.starttime = struct.unpack("<BBHfQ", f.read(16))
 
+		log.debug("NCH %d INST: %d INSTV: %d DT: %f ST: %f", self.nch, self.instr, self.instrv, self.deltat, self.starttime)
+
 		for i in range(self.nch):
 			self.cal.append(struct.unpack("<d", f.read(8))[0])
 
+		log.debug("CAL: %s", self.cal)
+
 		reclen = struct.unpack("<H", f.read(2))[0]
-		self.rec = f.read(reclen)
+		self.rec = f.read(reclen); log.debug("Rec %s (%d)", self.rec, reclen)
 		proclen = struct.unpack("<H", f.read(2))[0]
-		self.proc = f.read(proclen)
+		self.proc = f.read(proclen); log.debug("Proc %s (%d)", self.proc, proclen)
 		fmtlen = struct.unpack("<H", f.read(2))[0]
-		self.fmt = f.read(fmtlen)
+		self.fmt = f.read(fmtlen); log.debug("Fmt %s (%d)", self.fmt, fmtlen)
 		hdrlen = struct.unpack("<H", f.read(2))[0]
-		self.hdr = f.read(hdrlen)
+		self.hdr = f.read(hdrlen); log.debug("Hdr %s (%d)", self.hdr, hdrlen)
 
 		log.debug("NCH: %d INSTR: %d INSTRV: %d DT: %d", self.nch, self.instr, self.instrv, self.deltat)
 		log.debug("B: %s P: %s F: %s H: %s", self.rec, self.proc, self.fmt, self.hdr)
@@ -55,9 +59,6 @@ class LIDataFileReader(object):
 			return False
 
 		ch, _len = struct.unpack("<BH", dhdr)
-
-		# Convert channel to zero-index
-		ch -= 1
 
 		d = self.file.read(_len)
 
@@ -95,10 +96,14 @@ class LIDataFileReader(object):
 	def close(self):
 		self.file.close()
 
-	def to_csv(self, fname=None):
-		# Ensure that we've parsed all the file data chunks
-		self.readall()
-		return self.parser.dump_csv(fname)
+	def to_csv(self, fname):
+		try: os.remove(fname)
+		except OSError: pass
+
+		# Don't actually care about the chunk contents, just that it's been loaded
+		for i, chunk in enumerate(self):
+			log.debug("C %d", i)
+			self.parser.dump_csv(fname)
 
 	def __iter__(self):
 		return self
@@ -126,7 +131,10 @@ class LIDataFileWriter(object):
 
 		self.file.write('LI1')
 		hdr = struct.pack("<BBHfQ", nch, instr, instrv, timestep, starttime)
-		hdr += ''.join([ struct.pack('<d', c) for c in calcoeffs])
+
+		for i in range(nch):
+			hdr += struct.pack('<d', calcoeffs[i])
+
 		hdr += struct.pack("<H", len(binstr)) + binstr
 		hdr += struct.pack("<H", len(procstr)) + procstr
 		hdr += struct.pack("<H", len(fmtstr)) + fmtstr
@@ -292,7 +300,7 @@ class LIDataParser(object):
 			for rec1 in self.processed[0]:
 				self.fmtdict['n'] += 1
 				self.fmtdict['t'] += self.fmtdict['d']
-				self.dout += self.fmt.format(ch1=rec1, ch2=None, **self.fmtdict)
+				self.dout += self.fmt.format(ch1=rec1, ch2=0, **self.fmtdict)
 
 			return len(self.processed[0])
 		else:

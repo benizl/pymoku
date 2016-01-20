@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import pymoku
+import pymoku.dataparser
 
 if len(sys.argv) != 3:
 	print "Usage: li_to_csv.py infile.li outfile.csv"

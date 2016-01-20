@@ -31,7 +31,7 @@ binfmt_data = [
 def test_binfmts(fmt, din, expected):
 	dut = LIDataParser(1, fmt, "", "", "", 0, 0, [1, 1])
 	# Use the internal parser method so the records don't get processed and removed before
-	# we've had a chance to check them.
+	# we've had a chance to check them
 	dut._parse(din, 0)
 
 	assert dut.records[0] == expected
@@ -68,14 +68,14 @@ write_binfile_data = [
 	(1, 1, 1, "A", "B", "C", "D", [1], 1, 0, '',
 		'LI1\x24\x00\x01\x01\x01\x00\x00\x00\x80\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0\x3F\x01\x00A\x01\x00B\x01\x00C\x01\x00D'),
 	(1, 1, 1, "", "", "", "", [1], 1, 0, '\x00\x00\x00\x00',
-		'LI1\x20\x00\x01\x01\x01\x00\x00\x00\x80\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x01\x04\x00\x00\x00\x00\x00'),
+		'LI1\x20\x00\x01\x01\x01\x00\x00\x00\x80\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00'),
 ]
 
 @pytest.mark.parametrize("instr,instrv,nch,binstr,procstr,fmtstr,hdrstr,calcoeffs,timestep,starttime,data,expected", write_binfile_data)
 def test_binfile_write(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime, data, expected):
 	writer = LIDataFileWriter("test.dat", instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime)
 	if len(data):
-		writer.add_data(data, 1)
+		writer.add_data(data, 0)
 
 	writer.finalize()
 
@@ -103,7 +103,7 @@ def test_binfile_roundtrip(instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, 
 
 	# Input data format is binary, output format is records
 	for d in din:
-		writer.add_data(d, 1)
+		writer.add_data(d, 0)
 
 	writer.finalize()
 

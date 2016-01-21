@@ -199,12 +199,18 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# For now, only support viewing the whole captured buffer
 		#return buffer_offset * 4
 
+	def _deci_gain(self):
+		if self.decimation_rate < 2**20:
+			deci_gain = self.decimation_rate
+		else:
+			deci_gain = self.decimation_rate / 2**10
+
 	def _update_datalogger_params(self):
 		samplerate = _OSC_ADC_SMPS / self.decimation_rate
 		self.timestep = 1 / samplerate
 
 		if self.ain_mode == _OSC_AIN_DECI:
-			self.procstr = "*C/{:f}".format(self.decimation_rate)
+			self.procstr = "*C/{:f}".format(self.deci_gain())
 		else:
 			self.procstr = "*C"
 
@@ -325,8 +331,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			g1 = g2 = 1
 
 		if self.ain_mode == _OSC_AIN_DECI:
-			g1 /= self.decimation_rate
-			g2 /= self.decimation_rate
+			g1 /= self.deci_gain()
+			g2 /= self.deci_gain()
 
 		return (g1, g2)
 

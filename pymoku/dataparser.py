@@ -190,7 +190,6 @@ class LIDataFileReader(object):
 		except OSError: pass
 		# Don't actually care about the chunk contents, just that it's been loaded
 		while self._parse_chunk() is not None:
-			print len(self.parser.processed[0])
 			self.parser.dump_csv(fname)
 
 	def __iter__(self):

@@ -28,6 +28,11 @@ for attr, val in _oscilloscope.__dict__.iteritems():
 	if attr.startswith('OSC_'):
 		setattr(_this_module, attr, val)
 
+# Re-export all constants from generic Frame Instrument that start with DL_ (datalogger)
+for attr, val in _frame_instrument.__dict__.iteritems():
+	if attr.startswith('DL_'):
+		setattr(_this_module, attr, val)
+
 # Re-export all constants from Signal Generator that start with SG_
 for attr, val in _siggen.__dict__.iteritems():
 	if attr.startswith('SG_'):

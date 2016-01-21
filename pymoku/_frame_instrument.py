@@ -10,6 +10,15 @@ import _instrument
 
 log = logging.getLogger(__name__)
 
+DL_STATE_NONE		= 0
+DL_STATE_RUNNING 	= 1
+DL_STATE_WAITING 	= 2
+DL_STATE_INVAL		= 3
+DL_STATE_FSFULL		= 4
+DL_STATE_OVERFLOW	= 5
+DL_STATE_BUSY		= 6
+DL_STATE_STOPPED	= 7
+
 class FrameQueue(Queue):
 	def put(self, item, block=True, timeout=None):
 		""" Behaves the same way as default except that instead of raising Full, it
@@ -225,6 +234,17 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		- **to start** -- Number of seconds until/since start. Time until start is positive, a negative number indicates that the record has started already.
 		- **to end** -- Number of seconds until/since end.
 
+		Status is one of:
+
+		- **DL_STATE_NONE** -- No session
+		- **DL_STATE_RUNNING** -- Session currently running
+		- **DL_STATE_WAITING** -- Session waiting to run (delayed start)
+		- **DL_STATE_INVAL** -- An attempt was made to start a session with invalid parameters
+		- **DL_STATE_FSFULL** -- A session has terminated early due to the storage filling up
+		- **DL_STATE_OVERFLOW** -- A session has terminated early due to the sample rate being too high for the storage speed
+		- **DL_STATE_BUSY** -- An attempt was made to start a session when one was already running
+		- **DL_STATE_STOPPED** -- A session has successfully completed.
+
 		:rtype: int, int, int, int
 		:return: status, logged, to start, to end."""
 		if self._moku is None: raise NotDeployedException()
@@ -257,7 +277,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		If the datalogger is busy, the time remaining may be queried to see how long it might be
 		until it has finished what it's doing, or it can be forcibly stopped with a call to
 		:any:`datalogger_stop`."""
-		return self.datalogger_status()[0] != 0
+		return self.datalogger_status()[0] != DL_STATE_NONE
 
 	def datalogger_completed(self):
 		""" Returns whether or not the datalogger is expecting to log any more data.
@@ -265,21 +285,21 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		If the log is completed then the results files are ready to be uploaded or simply
 		read off the SD card. At most one subsequent :any:`datalogger_get_samples` call
 		will return without timeout."""
-		return self.datalogger_status()[0] not in [1, 2]
+		return self.datalogger_status()[0] not in [DL_STATE_RUNNING, DL_STATE_WAITING]
 
 	def datalogger_error(self):
 		""" Returns a string representing the current error, or *None* if the session is not in error."""
 		code = self.datalogger_status()[0]
 
-		if code in [0, 1, 2, 7]:
+		if code in [DL_STATE_NONE, DL_STATE_RUNNING, DL_STATE_WAITING, DL_STATE_STOPPED]:
 			return None
-		elif code == 3:
+		elif code == DL_STATE_INVAL:
 			return "Invalid Parameters for Datalogger Operation"
-		elif code == 4:
+		elif code == DL_STATE_FSFULL:
 			return "Target Filesystem Full"
-		elif code == 5:
+		elif code == DL_STATE_OVERFLOW:
 			return "Session overflowed, sample rate too fast."
-		elif code == 6:
+		elif code == DL_STATE_BUSY:
 			return "Tried to start a logging session while one was already running."
 
 	def datalogger_upload(self):

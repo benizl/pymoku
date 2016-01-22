@@ -194,7 +194,25 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 	def datalogger_start(self, start=0, duration=0, use_sd=True, ch1=True, ch2=False, filetype='csv'):
 		""" Start recording data with the current settings.
-		It is up to the user to ensure that the current aquisition rate is sufficiently slow to not loose samples"""
+
+		:raises InvalidOperationException: if the sample rate is too high for the selected filetype
+
+		:param start: Start time in seconds from the time of function call
+		:param duration: Log duration in seconds
+		:type use_sd: bool
+		:param use_sd: Log to SD card (default is internal volatile storage)
+		:type ch1: bool
+		:param ch1: Log from Channel 1
+		:type ch2: bool
+		:param ch2: Log from Channel 2
+		:param filetype: Type of log to start. One of:
+
+		- **csv** -- CSV file, 1ksmps max rate
+		- **bin** -- LI Binary file, 10ksmps max rate
+		- **net** -- Log to network, retrieve data with :any:`datalogger_get_samples`. 100smps max rate
+		- **plt** -- Log to Plot.ly. 10smps max rate
+
+		"""
 		from datetime import datetime
 		if self._moku is None: raise NotDeployedException()
 		# TODO: rest of the options, handle errors
@@ -203,6 +221,10 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		tag = "%04d" % self._dlserial
 
 		fname = datetime.now().strftime("datalog-" + tag + "-%Y-%m-%d-%H-%M")
+
+		maxrates = { 'bin' : 10000, 'csv' : 1000, 'net' : 100, 'plt' : 10}
+		if 1 / self.timestep > maxrates[filetype]:
+			raise InvalidOperationException("Sample Rate %d too high for file type %s" % (1 / self.timestep, filetype))
 
 		if filetype == 'net':
 			self._dlsub_init(tag)

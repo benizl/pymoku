@@ -238,7 +238,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 		# "Auto" RBW is 5 screen points
 		rbw = self.rbw or 5 * fspan / _SA_SCREEN_WIDTH
- 
+
 		rbw = min(max(rbw, 17.0 / 16.0 * fbin_resolution * window_factor), 2.0**10.0 * fbin_resolution * window_factor)
 
 		self.rbw_ratio = round(rbw / window_factor / fbin_resolution)
@@ -268,7 +268,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		self.offset_alt = -4
 
 		self.render_mode = RDR_DDS
-		self.x_mode = SWEEP
+		self.x_mode = FULL_FRAME
 
 		self.set_frontend(1)
 		self.set_frontend(2)

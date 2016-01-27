@@ -37,6 +37,7 @@ INSTR_RST	= 0x00000001
 # REG_OUTLEN Constants
 ROLL		= (1 << 29)
 SWEEP		= (1 << 30)
+FULL_FRAME	= 0
 PAUSE		= (1 << 31)
 
 # REG_FILT Constants
@@ -284,7 +285,7 @@ _instr_reg_hdl = [
 	('hwserial',		REG_ID2, None, lambda rval: rval & 0xFFF),
 	('frame_length',	REG_OUTLEN, lambda l, old: (old & ~0x3FF) | _usgn(l, 12),
 									lambda rval: rval & 0x3FF),
-	('x_mode',			REG_OUTLEN, lambda m, old: ((old & ~0xE0000000) | m) if m in [ROLL, SWEEP, PAUSE] else None,
+	('x_mode',			REG_OUTLEN, lambda m, old: ((old & ~0xE0000000) | m) if m in [ROLL, SWEEP, FULL_FRAME] else None,
 									lambda rval: rval & 0xE0000000),
 	('render_mode',		REG_FILT,	lambda f, old: f if f in [RDR_CUBIC, RDR_MINMAX, RDR_DECI, RDR_DDS ] else None,
 									lambda rval: rval),

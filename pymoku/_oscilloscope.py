@@ -45,6 +45,7 @@ OSC_EDGE_BOTH		= 2
 # do actually want to give people access to these constants directly for Oscilloscope
 OSC_ROLL			= _instrument.ROLL
 OSC_SWEEP			= _instrument.SWEEP
+OSC_FULL_FRAME		= _instrument.FULL_FRAME
 OSC_PAUSE			= _instrument.PAUSE
 
 _OSC_LB_ROUND		= 0
@@ -254,9 +255,11 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		"""
 		Set rendering mode for the horizontal axis.
 
-		:type xmode: *OSC_ROLL*, *OSC_SWEEP*, *OSC_PAUSE*
+		:type xmode: *OSC_ROLL*, *OSC_SWEEP*, *OSC_FULL_FRAME*
 		:param xmode:
-			Respectively; Roll Mode (scrolling), Sweep Mode (normal oscilloscope trace sweeping across the screen) or Paused (no updates)."""
+			Respectively; Roll Mode (scrolling), Sweep Mode (normal oscilloscope trace sweeping across the screen)
+			or Full Frame (Like sweep, but waits for the frame to be completed).
+		"""
 		self.x_mode = xmode
 
 	def set_precision_mode(self, state):
@@ -296,7 +299,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.framerate = _OSC_FPS
 		self.frame_length = _OSC_SCREEN_WIDTH
 
-		self.set_xmode(OSC_SWEEP)
+		self.set_xmode(OSC_FULL_FRAME)
 		self.set_timebase(-0.25, 0.25)
 		self.trig_mode = OSC_TRIG_AUTO
 		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
@@ -320,7 +323,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		except KeyError:
 			log.warning("Moku appears uncalibrated")
 			g1 = g2 = 1
-		
+
 		if self.ain_mode == _OSC_AIN_DECI:
 			g1 /= self.decimation_rate
 			g2 /= self.decimation_rate

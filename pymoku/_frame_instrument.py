@@ -78,7 +78,6 @@ class DataFrame(object):
 		self.flags = None
 
 	def add_packet(self, packet):
-
 		hdr_len = 13
 		if len(packet) <= hdr_len:
 			log.warning("Corrupt frame recevied")
@@ -102,10 +101,10 @@ class DataFrame(object):
 		# valid samples. Trim the fat.
 		if chan == 0:
 			self.chs_valid[0] = True
-			self.raw1 = packet[hdr_len:]
+			self.raw1 = packet[hdr_len:-8]
 		else:
 			self.chs_valid[1] = True
-			self.raw2 = packet[hdr_len:]
+			self.raw2 = packet[hdr_len:-8]
 
 		self.complete = all(self.chs_valid)
 

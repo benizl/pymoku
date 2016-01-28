@@ -282,7 +282,7 @@ class LIDataParser(object):
 
 		for clause in binstr.split(':'):
 			try:
-				typ, bitlen, literal = re.findall(r'([usfbrp])([0-9]+),*([0-9a-zA-Z\-]+)*', clause)[0]
+				typ, bitlen, literal = re.findall(r'([usfbrp])([0-9]+),*([0-9a-zA-Z]+)*', clause)[0]
 				fmt.append((typ, int(bitlen), int(literal, 0) if len(literal) else None))
 			except IndexError:
 				raise InvalidFormatException("Can't parse binary specifier %s" % clause)
@@ -305,9 +305,9 @@ class LIDataParser(object):
 		fmt = []
 
 		for clause in procstr.split(':'):
-			ops = re.findall(r'([*/\+\-&s\^fc])(\-?[0-9\.xA-F]+)?', clause)
+			ops = re.findall(r'([*/\+\-&s\^fc])(\-?[0-9\.xA-F]+(e\-?[0-9]+)?)?', clause)
 
-			ops = [ (op, _eval_lit(lit)) for op, lit in ops]
+			ops = [ (op, _eval_lit(lit)) for op, lit, _ in ops]
 
 			fmt.append(ops)
 

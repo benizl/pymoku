@@ -145,6 +145,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self.fmtstr = ''
 		self.hdrstr = ''
 
+		self.upload_index = {}
+
 	def flush(self):
 		""" Clear the Frame Buffer.
 		This is normally not required as one can simply wait for the correctly-generated frames to propagate through
@@ -255,6 +257,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		- **logged** -- Number of samples recorded so far. If more than one channel is active, this is the sum of all points across all channels.
 		- **to start** -- Number of seconds until/since start. Time until start is positive, a negative number indicates that the record has started already.
 		- **to end** -- Number of seconds until/since end.
+		- **filename** -- Base filename of current log session (without filename)
 
 		Status is one of:
 
@@ -280,7 +283,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		:rtype: int, int
 		:return: to start, to end"""
-		d1, d2, start, end = self.datalogger_status()
+		d1, d2, start, end, fname = self.datalogger_status()
 		return start, end
 
 	def datalogger_samples(self):
@@ -308,6 +311,13 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		read off the SD card. At most one subsequent :any:`datalogger_get_samples` call
 		will return without timeout."""
 		return self.datalogger_status()[0] not in [DL_STATE_RUNNING, DL_STATE_WAITING]
+
+	def datalogger_filename(self):
+		""" Returns the current base filename of the logging session.
+
+		The base filename doesn't include the file extension as multiple files might be
+		recorded simultaneously with different extensions."""
+		return self.datalogger_status()[4]
 
 	def datalogger_error(self):
 		""" Returns a string representing the current error, or *None* if the session is not in error."""
@@ -338,7 +348,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		# Check internal and external storage
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
-				if re.match("datalog-%04d-.*\.[a-z]{2,3}" % self._dlserial, f[0]):
+				if f[0].startswith(self.datalogger_filename()):
 					# Data length of zero uploads the whole file
 					self._moku._receive_file(mp, f[0], 0)
 					uploaded += 1
@@ -362,7 +372,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		for mp in ['e', 'i']:
 			files = self._moku._fs_list(mp)
 			for f in files:
-				if re.match("channel-.*-[a-zA-Z0-9]{4}\.[a-z]{3}", f[0]):
+				if re.match("datalog-.*\.[a-z]{2,3}", f[0]):
 					# Data length of zero uploads the whole file
 					self._moku._receive_file(mp, f, 0)
 					uploaded += 1

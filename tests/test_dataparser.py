@@ -40,6 +40,7 @@ def test_binfmts(fmt, din, expected):
 procfmt_data = [
 	("<s32", "", "\x01\x00\x00\x00", [1]), # No-op, single element tuple
 	("<s32:f32", ":", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(1,-1.0)]), # No-op
+	("<s32:f32", "*-1e2:*1e-1", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(-100,-0.1)]), # Exponential notation
 	("<s32:f32", "*2:*2", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(2,-2.0)]), # Multiplication
 	("<s32:f32", "*-2:*-2", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(-2,2.0)]), # Multiplication by negative
 	("<s32:f32", "*C:*C", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(2,-2.0)]), # Multiplication by calibration coefficient (hard-coded to two in the fixture)
@@ -51,6 +52,8 @@ procfmt_data = [
 	("<s32:f32", "+1^2:-1^2", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(4, 4)]), # Square root, compound operations
 	("<s32:f32", "*0.5f:*-0.5c", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(0, 1)]), # Floor and ceiling operations
 	("<s32:f32", "+1+1-2:-1-1+2", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(1, -1.0)]), # Multiple operations
+	("<s32:f32", "+1+1-2:-1-1+2e-1-5", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(1, -7.8)]), # Multiple operations
+	("<s32:f32", "+1 +1 -2:-1 -1 +2e-1 -5", "\x01\x00\x00\x00\x00\x00\x80\xBF", [(1, -7.8)]), # Spaces between operations
 	("<s32:f32", "+1+1-2:-1-1+2", "\x01\x00\x00\x00\x00\x00\x80\xBF\x01\x00\x00\x00\x00\x00\x80\xBF\x00\x80\xBF", [(1, -1.0),(1, -1.0)]), # Multiple records, including partial
 ]
 

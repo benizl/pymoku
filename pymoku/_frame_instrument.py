@@ -458,6 +458,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		skt.connect("tcp://%s:27185" % self._moku._ip)
 		skt.setsockopt_string(zmq.SUBSCRIBE, u'')
 		skt.setsockopt(zmq.CONFLATE, 1)
+		skt.setsockopt(zmq.LINGER, 5000)
 
 		fr = self.frame_class(**self.frame_kwargs)
 
@@ -472,7 +473,6 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 						fr = self.frame_class(**self.frame_kwargs)
 		finally:
 			skt.close()
-			ctx.destroy()
 
 	def _heartbeat_worker(self):
 		hs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

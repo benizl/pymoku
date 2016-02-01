@@ -160,6 +160,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.hdrstr = "Moku:Lab Data Logger\r\nStart,{T}\r\nSample Rate,{t}\r\nTime,Channel 1,Channel 2\r\n"
 		self.timestep = 1
 
+		self.decimation_rate = 1
+
 	def _optimal_decimation(self, t1, t2):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalADCDecimation
 		ts = abs(t1 - t2)
@@ -171,7 +173,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		buffer_smps = _OSC_ADC_SMPS / decimation
 		offset_secs = t1
-		offset = min(max(math.ceil(offset_secs * buffer_smps / 4.0), -2**28), 2**12)
+		offset = round(min(max(math.ceil(offset_secs * buffer_smps / 4.0), -2**28), 2**12))
 
 		return offset
 
@@ -180,7 +182,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		buffer_smps = _OSC_ADC_SMPS / decimation
 		screen_smps = min(_OSC_SCREEN_WIDTH / abs(t1 - t2), _OSC_ADC_SMPS)
 
-		return min(max(buffer_smps / screen_smps, 1.0), 16.0)
+		return round(min(max(buffer_smps / screen_smps, 1.0), 16.0))
 
 	def _render_offset(self, t1, t2, decimation, buffer_offset, render_decimation):
 		# Based on mercury_ipad/LISettings::OSCalculateFrameOffsetForDecimation
@@ -200,10 +202,13 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		#return buffer_offset * 4
 
 	def _deci_gain(self):
+		if self.decimation_rate == 0:
+			return 1
+
 		if self.decimation_rate < 2**20:
-			deci_gain = self.decimation_rate
+			return self.decimation_rate
 		else:
-			deci_gain = self.decimation_rate / 2**10
+			return self.decimation_rate / 2**10
 
 	def _update_datalogger_params(self):
 		samplerate = _OSC_ADC_SMPS / self.decimation_rate
@@ -213,6 +218,18 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			self.procstr = "*C/{:f}".format(self.deci_gain())
 		else:
 			self.procstr = "*C"
+
+	def _set_render(self, t1, t2, decimation):
+		self.render_mode = RDR_CUBIC #TODO: Support other
+		self.pretrigger = self._buffer_offset(t1, t2, self.decimation_rate)
+		self.render_deci = self._render_downsample(t1, t2, self.decimation_rate)
+		self.offset = self._render_offset(t1, t2, self.decimation_rate, self.pretrigger, self.render_deci)
+
+		# Set alternates to regular, means we get distorted frames until we get a new trigger
+		self.render_deci_alt = self.render_deci
+		self.offset_alt = self.offset
+
+		log.debug("Render params: Deci %f PT: %f, RDeci: %f, Off: %f", self.decimation_rate, self.pretrigger, self.render_deci, self.offset)
 
 	def set_timebase(self, t1, t2):
 		""" Set the left- and right-hand span for the time axis.
@@ -226,19 +243,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:type t2: float
 		:param t2: As *t1* but to the right of screen.
 		"""
-		self.render_mode = RDR_CUBIC #TODO: Support other
 		self.decimation_rate = self._optimal_decimation(t1, t2)
-		self.pretrigger = self._buffer_offset(t1, t2, self.decimation_rate)
-		self.render_deci = self._render_downsample(t1, t2, self.decimation_rate)
-		self.offset = self._render_offset(t1, t2, self.decimation_rate, self.pretrigger, self.render_deci)
-
-		log.debug("Render params: Deci %f PT: %f, RDeci: %f, Off: %f", self.decimation_rate, self.pretrigger, self.render_deci, self.offset)
-
-		self.render_deci = 16
-
-		# Set alternates to regular, means we get distorted frames until we get a new trigger
-		self.render_deci_alt = self.render_deci
-		self.offset_alt = self.offset
+		self._set_render(t1, t2, self.decimation_rate)
 
 		self._update_datalogger_params()
 
@@ -307,6 +313,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		self.set_xmode(OSC_FULL_FRAME)
 		self.set_timebase(-0.25, 0.25)
+		self.set_precision_mode(False)
 		self.trig_mode = OSC_TRIG_AUTO
 		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
 		self.set_frontend(1)
@@ -323,6 +330,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 								  "L" if self.relays_ch2 & RELAY_LOWG else "H",
 								  "D" if self.relays_ch2 & RELAY_DC else "A")
 
+		log.debug("calibration values for sections %s, %s = %f, %f; deci %f", sect1, sect2, float(self.calibration[sect1]), float(self.calibration[sect2]), self._deci_gain())
+
 		try:
 			g1 = 1 / float(self.calibration[sect1])
 			g2 = 1 / float(self.calibration[sect2])
@@ -331,8 +340,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			g1 = g2 = 1
 
 		if self.ain_mode == _OSC_AIN_DECI:
-			g1 /= self.deci_gain()
-			g2 /= self.deci_gain()
+			g1 /= self._deci_gain()
+			g2 /= self._deci_gain()
 
 		return (g1, g2)
 

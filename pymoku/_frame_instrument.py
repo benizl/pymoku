@@ -197,7 +197,11 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 	def datalogger_start(self, start=0, duration=0, use_sd=True, ch1=True, ch2=False, filetype='csv'):
 		""" Start recording data with the current settings.
 
-		:raises InvalidOperationException: if the sample rate is too high for the selected filetype
+		Device must be in ROLL mode (via a call to :any:`set_xmode`) and the sample rate must be appropriate
+		to the file type (see below).
+
+		:raises InvalidOperationException: if the sample rate is too high for the selected filetype or if the
+		device *x_mode* isn't set to *ROLL*.
 
 		:param start: Start time in seconds from the time of function call
 		:param duration: Log duration in seconds
@@ -222,11 +226,14 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		tag = "%04d" % self._dlserial
 
-		fname = datetime.now().strftime("datalog-" + tag + "-%Y-%m-%d-%H-%M")
+		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
 
 		maxrates = { 'bin' : 10000, 'csv' : 1000, 'net' : 100, 'plt' : 10}
 		if 1 / self.timestep > maxrates[filetype]:
 			raise InvalidOperationException("Sample Rate %d too high for file type %s" % (1 / self.timestep, filetype))
+
+		if self.x_mode != _instrument.ROLL:
+			raise InvalidOperationException("Instrument must be in roll mode to perform data logging")
 
 		if filetype == 'net':
 			self._dlsub_init(tag)
@@ -317,7 +324,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		The base filename doesn't include the file extension as multiple files might be
 		recorded simultaneously with different extensions."""
-		return self.datalogger_status()[4]
+		return self.datalogger_status()[4].strip()
 
 	def datalogger_error(self):
 		""" Returns a string representing the current error, or *None* if the session is not in error."""

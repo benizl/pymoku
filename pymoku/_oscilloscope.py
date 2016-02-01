@@ -320,7 +320,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		try:
 			g1 = 1 / float(self.calibration[sect1])
 			g2 = 1 / float(self.calibration[sect2])
-		except KeyError:
+		except (KeyError, TypeError):
 			log.warning("Moku appears uncalibrated")
 			g1 = g2 = 1
 
@@ -333,6 +333,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 	def commit(self):
 		super(Oscilloscope, self).commit()
 		self.scales[self._stateid] = self._calculate_scales()
+
 		# TODO: Trim scales dictionary, getting rid of old ids
 
 	# Bring in the docstring from the superclass for our docco.
@@ -341,7 +342,10 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 	def attach_moku(self, moku):
 		super(Oscilloscope, self).attach_moku(moku)
 
-		self.calibration = dict(self._moku._get_property_section("calibration"))
+		try:
+			self.calibration = dict(self._moku._get_property_section("calibration"))
+		except:
+			log.warning("Can't read calibration values.")
 
 	attach_moku.__doc__ = _instrument.MokuInstrument.attach_moku.__doc__
 

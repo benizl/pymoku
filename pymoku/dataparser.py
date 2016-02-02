@@ -313,40 +313,6 @@ class LIDataParser(object):
 
 		return fmt
 
-	@staticmethod
-	def _parse_unsigned(bits):
-		return int(bits, 2)
-
-	@staticmethod
-	def _parse_signed(bits):
-		val = LIDataParser._parse_unsigned(bits)
-
-		if bits[0] == '1':
-			val -= (1 << len(bits))
-
-		return val
-	
-	@staticmethod
-	def _parse_float(bits):
-		import struct
-
-		if len(bits) == 32:
-			fmtstr = 'If'
-		elif len(bits) == 64:
-			fmtstr = 'Qd'
-		else:
-			raise InvalidFormatException("Can't have a floating point spec with bit length other than 32/64 bits")
-
-		bitpattern = struct.pack(fmtstr[0], LIDataParser._parse_unsigned(bits))
-
-		return struct.unpack(fmtstr[1], bitpattern)[0]
-
-	@staticmethod
-	def _parse_boolean(bits):
-		if len(bits) != 1:
-			raise InvalidFormatException("Boolean that isn't a single bit")
-
-		return bits == '1'
 
 	def __init__(self, nch, binstr, procstr, fmtstr, hdrstr, deltat, starttime, calcoeffs):
 
@@ -412,11 +378,14 @@ class LIDataParser(object):
 
 
 	def _format_records(self):
+		new_data = []
 		if self.nch == 1:
 			for rec1 in self.processed[0]:
 				self.fmtdict['n'] += 1
 				self.fmtdict['t'] += self.fmtdict['d']
-				self.dout += self.fmt.format(ch1=rec1, ch2=0, **self.fmtdict)
+				new_data.append(self.fmt.format(ch1=rec1, ch2=0, **self.fmtdict))
+
+			self.dout += ''.join(new_data)
 
 			return len(self.processed[0])
 		else:
@@ -424,8 +393,10 @@ class LIDataParser(object):
 			for rec1, rec2 in zip(*self.processed):
 				self.fmtdict['n'] += 1
 				self.fmtdict['t'] += self.fmtdict['d']
-				self.dout += self.fmt.format(ch1=rec1, ch2=rec2, **self.fmtdict)
+				new_data.append(self.fmt.format(ch1=rec1, ch2=rec2, **self.fmtdict))
 				i += 1
+
+			self.dout += ''.join(new_data)
 
 			return i
 
@@ -455,16 +426,14 @@ class LIDataParser(object):
 		else:
 			# Clear out the raw and processed records so we can stream
 			# chunk at a time
-			for ch in self.processed:
-				for i in range(_len):
-					try:
-						ch.pop(0)
-					except IndexError:
-						break
+			for i in range(len(self.processed)):
+				self.processed[i] = self.processed[i][_len:]
 
 	def _parse(self, data, ch):
-		# Manipulation is done on a string of ASCII '0' and '1'. Could swap this
-		# out for bitarray primitives if performance turns out to be a problem.
+		# Manipulation is done on a string of ASCII '0' and '1'. Tried using
+		# the bitarray package but that's ~3x slower than the string version and
+		# the bitstring package is around 7x slower.
+
 		# This is all hard-coded little-endian; we reverse the bitstrings at the
 		# byte level here, then reverse them again at the field level below to
 		# correctly parse the fields LE.
@@ -488,20 +457,31 @@ class LIDataParser(object):
 			candidate = self.dcache[ch][:_len][::-1]
 
 			if _type in 'up':
-				val = LIDataParser._parse_unsigned(candidate)
+				val = int(candidate, 2)
 			elif _type == 's':
-				val = LIDataParser._parse_signed(candidate)
+				val = int(candidate, 2)
+
+				if candidate[0] == '1':
+					val -= (1 << _len)
 			elif _type == 'f':
-				val = LIDataParser._parse_float(candidate)
+				if _len == 32:
+					fmtstr = 'If'
+				elif _len == 64:
+					fmtstr = 'Qd'
+				else:
+					raise InvalidFormatException("Can't have a floating point spec with bit length other than 32/64 bits")
+
+				bitpattern = struct.pack(fmtstr[0], int(candidate, 2))
+				val = struct.unpack(fmtstr[1], bitpattern)[0]
 			elif _type == 'b':
-				val = LIDataParser._parse_boolean(candidate)
+				val = candidate == '1'
 			else:
 				raise InvalidFormatException("Don't know how to handle '%s' types" % _type)
 
 			if not lit or val == lit:
 				if _type != 'p':
 					self._currecord[ch].append(val)
-				self._currfmt[ch].pop(0)
+				self._currfmt[ch] = self._currfmt[ch][1:]
 			else:
 				# If we fail a literal match, drop the entire pattern and start again
 				self._currecord[ch] = []

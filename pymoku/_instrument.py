@@ -283,6 +283,8 @@ _instr_reg_hdl = [
 	('instr_buildno',	REG_ID1, None, lambda rval: rval >> 16),
 	('hwver',			REG_ID2, None, lambda rval: rval >> 24),
 	('hwserial',		REG_ID2, None, lambda rval: rval & 0xFFF),
+	('keep_last',		REG_OUTLEN, lambda l, old: (old & ~0x10000000) | (l << 28),
+									lambda rval: (rval & 0x10000000) >> 28),
 	('frame_length',	REG_OUTLEN, lambda l, old: (old & ~0x3FF) | _usgn(l, 12),
 									lambda rval: rval & 0x3FF),
 	('x_mode',			REG_OUTLEN, lambda m, old: ((old & ~0xE0000000) | m) if m in [ROLL, SWEEP, FULL_FRAME] else None,

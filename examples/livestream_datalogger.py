@@ -1,4 +1,4 @@
-from pymoku import Moku, MokuException
+from pymoku import Moku, MokuException, NoDataException
 from pymoku.instruments import *
 import time, logging, traceback
 
@@ -19,12 +19,11 @@ else:
 
 try:
 	i.set_defaults()
-	i.set_samplerate(1000) #10ksps
+	i.set_samplerate(10)
 	i.set_xmode(OSC_ROLL)
 	i.commit()
 
-	if i.datalogger_busy():
-		i.datalogger_stop()
+	i.datalogger_stop()
 
 	i.datalogger_start(start=0, duration=10, filetype='net')
 
@@ -32,7 +31,7 @@ try:
 		ch, idx, d = i.datalogger_get_samples(timeout=5)
 
 		print "Received samples %d to %d from channel %d" % (idx, idx + len(d), ch)
-except MokuException as e:
+except NoDataException as e:
 	# This will be raised if we try and get samples but the session has finished.
 	print e
 except Exception as e:

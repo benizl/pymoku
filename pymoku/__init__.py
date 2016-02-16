@@ -287,7 +287,7 @@ class Moku(object):
 		return r[0][1]
 
 
-	def _stream_start(self, ch1, ch2, start, end, timestep, tag, binstr, procstr, fmtstr, hdrstr, fname, ftype='csv', use_sd=True):
+	def _stream_prep(self, ch1, ch2, start, end, timestep, tag, binstr, procstr, fmtstr, hdrstr, fname, ftype='csv', use_sd=True):
 		mp = 'e' if use_sd else 'i'
 
 		if start < 0 or end < start:
@@ -325,6 +325,14 @@ class Moku(object):
 		if stat not in [ 1, 2 ]:
 			raise StreamException("Stream start exception %d" % stat)
 
+	def _stream_start(self):
+		pkt = struct.pack("<BBB", 0x53, 0, 3)
+		self._conn.send(pkt)
+		reply = self._conn.recv()
+
+		hdr, seq, ae, stat = struct.unpack("<BBBB", reply[:4])
+
+		return stat		
 
 	def _stream_stop(self):
 		pkt = struct.pack("<BBB", 0x53, 0, 2)
@@ -410,8 +418,11 @@ class Moku(object):
 
 		return struct.unpack("<Q", self._fs_receive_generic(4))[0]
 
-	def _fs_list(self, mp):
-		self._fs_send_generic(5, mp)
+	def _fs_list(self, mp, calculate_checksums=False):
+		flags = 1 if calculate_checksums else 0
+
+		data = mp + chr(flags)
+		self._fs_send_generic(5, data)
 
 		reply = self._fs_receive_generic(5)
 

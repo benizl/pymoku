@@ -235,15 +235,58 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if self.x_mode != _instrument.ROLL:
 			raise InvalidOperationException("Instrument must be in roll mode to perform data logging")
 
+		if not all([ len(s) for s in [self.binstr, self.procstr, self.fmtstr, self.hdrstr]]):
+			raise InvalidOperationException("Instrument currently doesn't support data logging")
+
+		self._moku._stream_prep(ch1=ch1, ch2=ch2, start=start, end=start + duration, timestep=self.timestep,
+			binstr=self.binstr, procstr=self.procstr, fmtstr=self.fmtstr, hdrstr=self.hdrstr,
+			fname=fname, ftype=filetype, tag=tag, use_sd=use_sd)
+
 		if filetype == 'net':
 			self._dlsub_init(tag)
+
+		self._moku._stream_start()
+
+	def datalogger_start_single(self, use_sd=True, ch1=True, ch2=False, filetype='csv'):
+		""" Grab all currently-recorded data at full rate.
+
+		Unlike a normal datalogger session, this will log only the data that has *already* been aquired through
+		normal activities. For example, if the Oscilloscope has aquired a frame and is paused, this function will
+		retrieve the data in that frame at the full underlying sample rate.
+
+		:type use_sd: bool
+		:param use_sd: Log to SD card (default is internal volatile storage)
+		:type ch1: bool
+		:param ch1: Log from Channel 1
+		:type ch2: bool
+		:param ch2: Log from Channel 2
+		:param filetype: Type of log to start. One of:
+
+		- **csv** -- CSV file
+		- **bin** -- LI Binary file
+		- **net** -- Log to network, retrieve data with :any:`datalogger_get_samples`
+		- **plt** -- Log to Plot.ly
+		"""
+		from datetime import datetime
+		if self._moku is None: raise NotDeployedException()
+		# TODO: rest of the options, handle errors
+		self._dlserial += 1
+
+		tag = "%04d" % self._dlserial
+
+		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
 
 		if not all([ len(s) for s in [self.binstr, self.procstr, self.fmtstr, self.hdrstr]]):
 			raise InvalidOperationException("Instrument currently doesn't support data logging")
 
-		self._moku._stream_start(ch1=ch1, ch2=ch2, start=start, end=start + duration, timestep=self.timestep,
+		self._moku._stream_prep(ch1=ch1, ch2=ch2, start=0, end=0, timestep=self.timestep,
 			binstr=self.binstr, procstr=self.procstr, fmtstr=self.fmtstr, hdrstr=self.hdrstr,
 			fname=fname, ftype=filetype, tag=tag, use_sd=use_sd)
+
+		if filetype == 'net':
+			self._dlsub_init(tag)
+
+		self._moku._stream_start()
 
 	def datalogger_stop(self):
 		""" Stop a recording session previously started with :py:func:`datalogger_start`"""
@@ -351,11 +394,12 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if self._moku is None: raise NotDeployedException()
 
 		uploaded = 0
+		target = self.datalogger_filename()
 
 		# Check internal and external storage
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
-				if f[0].startswith(self.datalogger_filename()):
+				if f[0].startswith(target):
 					# Data length of zero uploads the whole file
 					self._moku._receive_file(mp, f[0], 0)
 					uploaded += 1

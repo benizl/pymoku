@@ -439,6 +439,9 @@ class LIDataParser(object):
 		# correctly parse the fields LE.
 		self.dcache[ch] += ''.join([ "{:08b}".format(d)[::-1] for d in bytearray(data) ])
 
+		#print ch
+		#print ''.join([ "{:02X}".format(ord(x)) for x in data])
+
 		while True:
 			if not len(self._currfmt[ch]):
 				self._currfmt[ch] = self.binfmt[:]
@@ -482,12 +485,18 @@ class LIDataParser(object):
 				if _type != 'p':
 					self._currecord[ch].append(val)
 				self._currfmt[ch] = self._currfmt[ch][1:]
+
+				# Drop off the whole successfully-matched field.
+				self.dcache[ch] = self.dcache[ch][_len:]
 			else:
 				# If we fail a literal match, drop the entire pattern and start again
+				log.debug("Literal mismatch (%d != %d), dropped partial record %s", val, lit, str(self._currecord[ch]))
 				self._currecord[ch] = []
 				self._currfmt[ch] = []
 
-			self.dcache[ch] = self.dcache[ch][_len:]
+				# Drop off a byte, assuming that that is the base granulatity at which the data has been captured
+				self.dcache[ch] = self.dcache[ch][8:]
+			
 
 		if len(self._currecord[ch]) and not len(self._currfmt[ch]):
 			self.records[ch].append(self._currecord[ch])

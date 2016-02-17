@@ -3,7 +3,7 @@ from pymoku.instruments import *
 import time, logging
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
-logging.getLogger('pymoku').setLevel(logging.DEBUG)
+logging.getLogger('pymoku').setLevel(logging.INFO)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
 m = Moku.get_by_name('example')
@@ -16,7 +16,7 @@ try:
 	i.set_samplerate(10)
 	i.set_xmode(OSC_ROLL)
 	i.commit()
-
+	time.sleep(1)
 	i.datalogger_stop()
 
 	i.datalogger_start(start=0, duration=10, use_sd=True, ch1=True, ch2=True, filetype='bin')

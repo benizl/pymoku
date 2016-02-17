@@ -89,7 +89,8 @@ class DataFrame(object):
 	def add_packet(self, packet):
 		hdr_len = 13
 		if len(packet) <= hdr_len:
-			log.warning("Corrupt frame recevied")
+			# Should be a higher priority but actually seems unexpectedly common. Revisit.
+			log.debug("Corrupt frame recevied, len %d", len(packet))
 			return
 
 		data = struct.unpack('<BHBBBBBIB', packet[:hdr_len])

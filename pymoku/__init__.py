@@ -326,7 +326,7 @@ class Moku(object):
 			raise StreamException("Stream start exception %d" % stat)
 
 	def _stream_start(self):
-		pkt = struct.pack("<BBB", 0x53, 0, 3)
+		pkt = struct.pack("<BBB", 0x53, 0, 4)
 		self._conn.send(pkt)
 		reply = self._conn.recv()
 

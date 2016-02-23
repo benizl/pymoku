@@ -81,7 +81,7 @@ class LIDataFileReader(object):
 			raise InvalidFileException("Unknown File Version %s" % v)
 
 		pkthdr_len = struct.unpack("<H", f.read(2))[0]
-		self.nch, self.instr, self.instrv, self.deltat, self.starttime = struct.unpack("<BBHfQ", f.read(16))
+		self.nch, self.instr, self.instrv, self.deltat, self.starttime = struct.unpack("<BBHdQ", f.read(20))
 
 		log.debug("NCH %d INST: %d INSTV: %d DT: %f ST: %f", self.nch, self.instr, self.instrv, self.deltat, self.starttime)
 
@@ -233,7 +233,7 @@ class LIDataFileWriter(object):
 		self.file = open(filename, 'wb')
 
 		self.file.write('LI1')
-		hdr = struct.pack("<BBHfQ", nch, instr, instrv, timestep, starttime)
+		hdr = struct.pack("<BBHdQ", nch, instr, instrv, timestep, starttime)
 
 		for i in range(nch):
 			hdr += struct.pack('<d', calcoeffs[i])

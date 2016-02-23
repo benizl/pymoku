@@ -305,7 +305,7 @@ class Moku(object):
 
 		pkt = struct.pack("<BBB", 0x53, 0, 1) #TODO: Proper sequence number
 		pkt += tag + mp
-		pkt += struct.pack("<IIBf", start, end, flags, timestep)
+		pkt += struct.pack("<IIBd", start, end, flags, timestep)
 		pkt += struct.pack("<H", len(fname))
 		pkt += fname
 		pkt += struct.pack("<H", len(binstr))

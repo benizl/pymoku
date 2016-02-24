@@ -321,6 +321,7 @@ class LIDataParser(object):
 
 		self.binfmt = LIDataParser._parse_binstr(binstr)
 		self.recordlen = sum(zip(*self.binfmt)[1])
+		self.procstr = procstr
 
 		# This parser assumes two channels but the input file may only be 1
 		while len(calcoeffs) < 2:
@@ -400,6 +401,8 @@ class LIDataParser(object):
 
 			return i
 
+	def set_coeff(self, ch, coeff):
+		self.procfmt[ch] = LIDataParser._parse_procstr(self.procstr, coeff)
 
 	def dump_csv(self, fname=None):
 		""" Write out incremental CSV output from new data"""

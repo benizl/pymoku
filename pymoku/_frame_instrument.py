@@ -4,7 +4,7 @@ import logging, time, threading
 import zmq
 
 from Queue import Queue, Empty
-from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException, NoDataException
+from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException, NoDataException, dataparser
 
 import _instrument
 
@@ -148,6 +148,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		self.upload_index = {}
 
+		self._strparser = None
+
 	def flush(self):
 		""" Clear the Frame Buffer.
 		This is normally not required as one can simply wait for the correctly-generated frames to propagate through
@@ -188,6 +190,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self._dlskt.connect("tcp://%s:27186" % self._moku._ip)
 		self._dlskt.setsockopt_string(zmq.SUBSCRIBE, unicode(tag))
 
+		self._strparser = dataparser.LIDataParser(self.nch, self.binstr, self.procstr, self.fmtstr, self.hdrstr, self.timestep, time.time(), [0] * self.nch)
+
 
 	def _dlsub_destroy(self):
 		if self._dlskt is not None:
@@ -225,7 +229,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		# TODO: rest of the options, handle errors
 		self._dlserial += 1
 
-		tag = "%04d" % self._dlserial
+		self.tag = "%04d" % self._dlserial
+		self.nch = 2 if ch1 and ch2 else 1
 
 		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
 
@@ -241,10 +246,10 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		self._moku._stream_prep(ch1=ch1, ch2=ch2, start=start, end=start + duration, timestep=self.timestep,
 			binstr=self.binstr, procstr=self.procstr, fmtstr=self.fmtstr, hdrstr=self.hdrstr,
-			fname=fname, ftype=filetype, tag=tag, use_sd=use_sd)
+			fname=fname, ftype=filetype, tag=self.tag, use_sd=use_sd)
 
 		if filetype == 'net':
-			self._dlsub_init(tag)
+			self._dlsub_init(self.tag)
 
 		self._moku._stream_start()
 
@@ -273,7 +278,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		# TODO: rest of the options, handle errors
 		self._dlserial += 1
 
-		tag = "%04d" % self._dlserial
+		self.tag = "%04d" % self._dlserial
+		self.nch = 2 if ch1 and ch2 else 1
 
 		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
 
@@ -282,10 +288,10 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		self._moku._stream_prep(ch1=ch1, ch2=ch2, start=0, end=0, timestep=self.timestep,
 			binstr=self.binstr, procstr=self.procstr, fmtstr=self.fmtstr, hdrstr=self.hdrstr,
-			fname=fname, ftype=filetype, tag=tag, use_sd=use_sd)
+			fname=fname, ftype=filetype, tag=self.tag, use_sd=use_sd)
 
 		if filetype == 'net':
-			self._dlsub_init(tag)
+			self._dlsub_init(self.tag)
 
 		self._moku._stream_start()
 
@@ -457,19 +463,32 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		:raises NoDataException: if the logging session has stopped
 		:raises FrameTimeout: if the timeout expired """
-		if self._dlskt in zmq.select([self._dlskt], [], [], timeout)[0]:
-			tag, data = self._dlskt.recv_multipart()
-			ch = int(tag.split(':')[1]) + 1
-			start = int(tag.split(':')[2])
 
-			smps = len(data) / 4
-			data = struct.unpack("<" + "f" * smps, data)
+		ch, start, coeff, raw = self._dl_get_samples_raw(timeout)
+
+		self._strparser.set_coeff(ch, coeff)
+
+		self._strparser.parse(raw, ch)
+		parsed = self._strparser.processed[ch]
+		self._strparser.clear_processed()
+
+		return ch + 1, start, parsed
+
+
+	def _dl_get_samples_raw(self, timeout):
+		if self._dlskt in zmq.select([self._dlskt], [], [], timeout)[0]:
+			hdr, data = self._dlskt.recv_multipart()
+
+			tag, ch, start, coeff = hdr.split('|')
+			ch = int(ch)
+			start = int(start)
+			coeff = float(coeff)
 
 			# Special value to indicate the stream has finished
-			if ch == 0:
+			if ch == -1:
 				raise NoDataException("Data log terminated")
 
-			return ch, start, data
+			return ch, start, coeff, data
 		else:
 			raise FrameTimeout("Data log timed out")
 

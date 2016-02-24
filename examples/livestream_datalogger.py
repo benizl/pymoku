@@ -24,7 +24,7 @@ try:
 	while True:
 		ch, idx, d = i.datalogger_get_samples(timeout=5)
 
-		print "Received samples %d to %d from channel %d" % (idx, idx + len(d), ch)
+		print "Received samples %d to %d from channel %d" % (idx, idx + len(d) - 1, ch)
 except NoDataException as e:
 	# This will be raised if we try and get samples but the session has finished.
 	print e

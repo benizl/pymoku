@@ -274,6 +274,12 @@ class LIDataParser(object):
 	an :any:`LIDataFileReader` instead."""
 
 	@staticmethod
+	def record_length(binstr):
+		""" Returns the bit length of the records decribed by the given binary description string """
+		b = LIDataParser._parse_binstr(binstr)
+		return sum(zip(*b)[1])
+
+	@staticmethod
 	def _parse_binstr(binstr):
 		fmt = []
 

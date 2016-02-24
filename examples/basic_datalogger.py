@@ -16,7 +16,7 @@ try:
 	i.set_samplerate(10)
 	i.set_xmode(OSC_ROLL)
 	i.commit()
-	time.sleep(1)
+	time.sleep(0.8)
 	i.datalogger_stop()
 
 	i.datalogger_start(start=0, duration=10, use_sd=True, ch1=True, ch2=True, filetype='bin')

@@ -399,7 +399,7 @@ class LIDataParser(object):
 			i = 0
 			for rec1, rec2 in zip(*self.processed):
 				self.fmtdict['n'] += 1
-				self.fmtdict['t'] += self.fmtdict['d']
+				self.fmtdict['t'] = (self.fmtdict['n'] - 1) * self.fmtdict['d']
 				new_data.append(self.fmt.format(ch1=rec1, ch2=rec2, **self.fmtdict))
 				i += 1
 

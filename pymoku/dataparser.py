@@ -389,7 +389,7 @@ class LIDataParser(object):
 		if self.nch == 1:
 			for rec1 in self.processed[0]:
 				self.fmtdict['n'] += 1
-				self.fmtdict['t'] += self.fmtdict['d']
+				self.fmtdict['t'] = (self.fmtdict['n'] - 1) * self.fmtdict['d']
 				new_data.append(self.fmt.format(ch1=rec1, ch2=0, **self.fmtdict))
 
 			self.dout += ''.join(new_data)

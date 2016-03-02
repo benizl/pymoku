@@ -155,7 +155,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.calibration = None
 
 		self.binstr = "<s32"
-		self.procstr = "*C"
+		self.procstr = ["*C","*C"]
 		self.fmtstr = "{t},{ch1:.8e},{ch2:.8e}\r\n"
 		self.hdrstr = "Moku:Lab Data Logger\r\nStart,{T}\r\nSample Rate,{t}\r\nTime,Channel 1,Channel 2\r\n"
 		self.timestep = 1
@@ -215,9 +215,11 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.timestep = 1 / samplerate
 
 		if self.ain_mode == _OSC_AIN_DECI:
-			self.procstr = "*C/{:f}".format(self.deci_gain())
+			self.procstr[0] = "*C/{:f}".format(self.deci_gain())
+			self.procstr[1] = "*C/{:f}".format(self.deci_gain())
 		else:
-			self.procstr = "*C"
+			self.procstr[0] = "*C"
+			self.procstr[1] = "*C"
 
 	def _set_render(self, t1, t2, decimation):
 		self.render_mode = RDR_CUBIC #TODO: Support other

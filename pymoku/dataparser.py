@@ -50,6 +50,7 @@ class LIDataFileReader(object):
 		"""
 		self.records = []
 		self.cal = []
+		self.proc = []
 		self.file = open(filename, 'rb')
 		f = self.file
 
@@ -92,8 +93,15 @@ class LIDataFileReader(object):
 
 		reclen = struct.unpack("<H", f.read(2))[0]
 		self.rec = f.read(reclen); log.debug("Rec %s (%d)", self.rec, reclen)
-		proclen = struct.unpack("<H", f.read(2))[0]
-		self.proc = f.read(proclen); log.debug("Proc %s (%d)", self.proc, proclen)
+
+		# One proc string per channel
+		proclen = []
+		for i in range(self.nch):
+			proclen.append(struct.unpack("<H", f.read(2))[0])
+			self.proc.append(f.read(proclen[i]));
+
+		log.debug("Proc %s (%s)", str(self.proc), str(proclen))
+
 		fmtlen = struct.unpack("<H", f.read(2))[0]
 		self.fmt = f.read(fmtlen); log.debug("Fmt %s (%d)", self.fmt, fmtlen)
 		hdrlen = struct.unpack("<H", f.read(2))[0]
@@ -239,7 +247,10 @@ class LIDataFileWriter(object):
 			hdr += struct.pack('<d', calcoeffs[i])
 
 		hdr += struct.pack("<H", len(binstr)) + binstr
-		hdr += struct.pack("<H", len(procstr)) + procstr
+
+		for i in range(nch):
+			hdr += struct.pack("<H", len(procstr[i])) + procstr[i]
+			
 		hdr += struct.pack("<H", len(fmtstr)) + fmtstr
 		hdr += struct.pack("<H", len(hdrstr)) + hdrstr
 
@@ -334,8 +345,8 @@ class LIDataParser(object):
 			calcoeffs.append(0)
 
 		self.procfmt = []
-		for ch in range(2):
-			self.procfmt.append(LIDataParser._parse_procstr(procstr, calcoeffs[ch]))
+		for ch in range(nch):
+			self.procfmt.append(LIDataParser._parse_procstr(procstr[ch], calcoeffs[ch]))
 
 		self.nch = nch
 		self.dcache = ['', '']
@@ -408,7 +419,7 @@ class LIDataParser(object):
 			return i
 
 	def set_coeff(self, ch, coeff):
-		self.procfmt[ch] = LIDataParser._parse_procstr(self.procstr, coeff)
+		self.procfmt[ch] = LIDataParser._parse_procstr(self.procstr[ch], coeff)
 
 	def dump_csv(self, fname=None):
 		""" Write out incremental CSV output from new data"""

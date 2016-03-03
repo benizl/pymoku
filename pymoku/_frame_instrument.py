@@ -107,6 +107,8 @@ class DataFrame(object):
 			self.frameid = frameid
 			self.chs_valid = [False, False]
 
+		log.debug("AP ch %d, f %d, w %d", chan, frameid, self.waveformid)
+
 		# For historical reasons the data length is 1026 while there are only 1024
 		# valid samples. Trim the fat.
 		if chan == 0:
@@ -490,7 +492,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 			return ch, start, coeff, data
 		else:
-			raise FrameTimeout("Data log timed out")
+			raise FrameTimeout("Data log timed out after %d seconds", timeout)
 
 
 

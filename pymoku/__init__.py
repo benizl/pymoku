@@ -350,8 +350,8 @@ class Moku(object):
 		self._conn.send(pkt)
 		reply = self._conn.recv()
 
-		hdr, seq, ae, stat, bt, trems, treme, fname_len = struct.unpack("<BBBBQiiH", reply[:22])
-		fname = reply[22:22 + fname_len]
+		hdr, seq, ae, stat, bt, trems, treme, flags, fname_len = struct.unpack("<BBBBQiiBH", reply[:23])
+		fname = reply[23:23 + fname_len]
 		return stat, bt, trems, treme, fname
 
 	def _fs_send_generic(self, action, data):

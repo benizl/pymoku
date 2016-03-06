@@ -6,7 +6,7 @@ from pymoku import InvalidOperationException
 
 def stream_init(moku, uname, api_key, str_id1, str_id2, npoints=100, mode='lines', line={}):
 
-	line = ','.join([ '='.join(i) for i in line.items()])
+	line = ';'.join([ '='.join(i) for i in line.items()])
 
 	settings = [
 		('plotly.uname', uname),

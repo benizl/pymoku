@@ -21,6 +21,7 @@ else:
 	print "Attached to existing Oscilloscope"
 
 linespec = {
+	'color'	: '(rgb(100,0,0),)',
 	'shape' : 'spline',
 	'width' : '2'
 }

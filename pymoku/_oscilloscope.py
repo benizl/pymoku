@@ -157,7 +157,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.binstr = "<s32"
 		self.procstr = ["*C","*C"]
 		self.fmtstr = "{t},{ch1:.8e},{ch2:.8e}\r\n"
-		self.hdrstr = "Moku:Lab Data Logger\r\nStart,{T}\r\nSample Rate,{t}\r\nTime,Channel 1,Channel 2\r\n"
+		self.hdrstr = "Moku:Lab Data Logger\r\nStart,{T}\r\nSample Rate,{d}\r\nTime,Channel 1,Channel 2\r\n"
 		self.timestep = 1
 
 		self.decimation_rate = 1

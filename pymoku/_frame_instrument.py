@@ -236,7 +236,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
 
-		maxrates = { 'bin' : 10000, 'csv' : 1000, 'net' : 100, 'plt' : 10}
+		maxrates = { 'bin' : 10000, 'csv' : 1000, 'net' : 100, 'plot' : 10}
 		if 1 / self.timestep > maxrates[filetype]:
 			raise InvalidOperationException("Sample Rate %d too high for file type %s" % (1 / self.timestep, filetype))
 

@@ -215,8 +215,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.timestep = 1 / samplerate
 
 		if self.ain_mode == _OSC_AIN_DECI:
-			self.procstr[0] = "*C/{:f}".format(self.deci_gain())
-			self.procstr[1] = "*C/{:f}".format(self.deci_gain())
+			self.procstr[0] = "*C/{:f}".format(self._deci_gain())
+			self.procstr[1] = "*C/{:f}".format(self._deci_gain())
 		else:
 			self.procstr[0] = "*C"
 			self.procstr[1] = "*C"
@@ -386,8 +386,8 @@ _osc_reg_hdl = [
 											lambda rval: rval),
 	('loopback_mode',	REG_OSC_ACTL,		lambda m, old: (old & ~0x01) | m if m in [_OSC_LB_CLIP, _OSC_LB_ROUND] else None,
 											lambda rval: rval & 0x01),
-	('ain_mode',		REG_OSC_ACTL,		lambda m, old: (old & ~0x300) | m << 16 if m in [_OSC_AIN_DDS, _OSC_AIN_DECI] else None,
-											lambda rval: (rval & 0x300) >> 16),
+	('ain_mode',		REG_OSC_ACTL,		lambda m, old: (old & ~0x30000) | (m << 16) if m in [_OSC_AIN_DDS, _OSC_AIN_DECI] else None,
+											lambda rval: (rval & 0x30000) >> 16),
 	('decimation_rate',	REG_OSC_DECIMATION,	lambda r, old: _usgn(r, 32), lambda rval: rval),
 ]
 _instrument._attach_register_handlers(_osc_reg_hdl, Oscilloscope)

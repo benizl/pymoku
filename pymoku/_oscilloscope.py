@@ -46,7 +46,6 @@ OSC_EDGE_BOTH		= 2
 OSC_ROLL			= _instrument.ROLL
 OSC_SWEEP			= _instrument.SWEEP
 OSC_FULL_FRAME		= _instrument.FULL_FRAME
-OSC_PAUSE			= _instrument.PAUSE
 
 _OSC_LB_ROUND		= 0
 _OSC_LB_CLIP		= 1

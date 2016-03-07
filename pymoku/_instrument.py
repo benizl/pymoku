@@ -10,7 +10,7 @@ REG_CTL 	= 0
 REG_STAT	= 1
 REG_ID1		= 2
 REG_ID2		= 3
-REG_RES1	= 4
+REG_PAUSE	= 4
 REG_OUTLEN	= 5
 REG_FILT	= 6
 REG_FRATE	= 7
@@ -38,7 +38,6 @@ INSTR_RST	= 0x00000001
 ROLL		= (1 << 29)
 SWEEP		= (1 << 30)
 FULL_FRAME	= 0
-PAUSE		= (1 << 31)
 
 # REG_FILT Constants
 RDR_CUBIC	= 0
@@ -287,8 +286,10 @@ _instr_reg_hdl = [
 									lambda rval: (rval & 0x10000000) >> 28),
 	('frame_length',	REG_OUTLEN, lambda l, old: (old & ~0x3FF) | _usgn(l, 12),
 									lambda rval: rval & 0x3FF),
-	('x_mode',			REG_OUTLEN, lambda m, old: ((old & ~0xE0000000) | m) if m in [ROLL, SWEEP, FULL_FRAME] else None,
-									lambda rval: rval & 0xE0000000),
+	('pause',			REG_PAUSE,	lambda m, old: (old & ~1) | (1 if m else 0),
+									lambda rval: (rval & 1) != 0),
+	('x_mode',			REG_OUTLEN, lambda m, old: ((old & ~0x60000000) | m) if m in [ROLL, SWEEP, FULL_FRAME] else None,
+									lambda rval: rval & 0x60000000),
 	('render_mode',		REG_FILT,	lambda f, old: f if f in [RDR_CUBIC, RDR_MINMAX, RDR_DECI, RDR_DDS ] else None,
 									lambda rval: rval),
 	('framerate',		REG_FRATE,	lambda f, old: _usgn(f * 256.0 / 477.0, 8),

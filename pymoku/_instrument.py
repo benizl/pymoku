@@ -26,6 +26,10 @@ REG_CAL1, REG_CAL2, REG_CAL3, REG_CAL4, REG_CAL5, REG_CAL6, REG_CAL7, REG_CAL8 =
 REG_CAL9, REG_CAL10 = range(24, 26)
 REG_STATE	= 63
 
+# Common instrument parameters
+ADC_SMP_RATE = 500e6
+CHN_BUFLEN = 2**14
+
 ### None of these constants will be exported to pymoku.instruments. If an instrument wants to
 ### give users access to these (e.g. relay settings) then the Instrument should define their
 ### own symbols equal to these guys
@@ -275,6 +279,23 @@ class MokuInstrument(object):
 			self.relays_ch1 = relays
 		elif channel == 2:
 			self.relays_ch2 = relays
+
+	def get_frontend(self, channel):
+		"""
+		:type channel: int
+		:param channel: Channel for which the relay settings are being retrieved
+
+		Return array of bool with the front end configuration of channels
+		[0] 50 Ohm
+		[1] 10xAttenuation
+		[2] AC Coupling
+		"""
+		if channel == 1:
+			r = self.relays_ch1
+		elif channel == 2:
+			r = self.relays_ch2
+
+		return [bool(r & RELAY_LOWZ), bool(r & RELAY_LOWG), not bool(r & RELAY_DC)]
 
 _instr_reg_hdl = [
 	# Name, Register, set-transform (user to register), get-transform (register to user); either None is W/R-only

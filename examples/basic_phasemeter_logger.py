@@ -8,13 +8,11 @@ logging.getLogger('pymoku').setLevel(logging.INFO)
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
 m = Moku('192.168.1.104')
 
-i = Oscilloscope()
+i = PhaseMeter()
 m.attach_instrument(i)
 
 try:
 	i.set_defaults()
-	i.set_samplerate(10)
-	i.set_xmode(OSC_ROLL)
 	i.commit()
 	time.sleep(0.8)
 	i.datalogger_stop()

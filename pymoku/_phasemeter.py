@@ -27,42 +27,13 @@ REG_PM_CSHIFT = 66
 REG_PM_OUTDEC = 67
 REG_PM_OUTSHIFT = 67
 
-_PM_FREQSCALE = 2.0**48 / (500.0 * 10e6)
-
-class PhaseMeterDataFrame(_frame_instrument.DataFrame):
-	def __init__(self):
-		super(PhaseMeterDataFrame, self).__init__()
-		self.phase1 = 0.0
-		self.phase2 = 0.0
-		self.frequency1 = 0.0
-		self.frequency2 = 0.0
-		self.amplitude1 = 0.0
-		self.amplitude2 = 0.0
-		self.counter1 = 0
-		self.counter2 = 0
-
-	def process_channel(self, raw_data):
-		i = 0
-		while raw_data[i:i+8] != '\xAA' * 4 + '\x55' * 4:
-			i += 1
-			if i >= 50: raise Exception("Couldn't find alignment bytes.")
-		i += 8
-
-		data = unpack('<IIIIII', raw_data[i:i+24])
-
-		freq = _upsgn(((data[1] & 0xFFFF0000) << 16) | data[0], 48)
-		freq = (freq / 2.0**48) * 500.0 * 10e6
-		phase = _upsgn(((data[1] & 0xFFFF) << 32) | data[2], 48)
-		phase = (phase / 2.0**48) * 500.0
-		count = data[3]
-		I = _upsgn(data[4], 32)
-		Q = _upsgn(data[5], 32)
-
-		return phase, freq, I, Q, count
-
-	def process_complete(self):
-		self.phase1, self.frequency1, self.I1, self.Q1, self.counter1 = self.process_channel(self.raw1)
-		self.phase2, self.frequency2, self.I2, self.Q2, self.counter2 = self.process_channel(self.raw2)
+# Phasemeter specific instrument constants
+_PM_ADC_SMPS = _instrument.ADC_SMP_RATE
+_PM_BUFLEN = _instrument.CHN_BUFLEN
+_PM_FREQSCALE = 2.0**48 / _PM_ADC_SMPS
+_PM_FREQ_MIN = 2e6
+_PM_FREQ_MAX = 200e6
+_PM_UPDATE_RATE = 1e6
 
 class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument may not be appropriate when we get streaming going.
 	""" PhaseMeter instrument object. This should be instantiated and attached to a :any:`Moku` instance.
@@ -88,31 +59,134 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		Name of this instrument.
 
 	"""
-	def __init__(self):
-		"""Create a new PhaseMeter instrument, ready to be attached to a Moku."""
-		super(PhaseMeter, self).__init__(PhaseMeterDataFrame)
-		self.id = 3
-		self.type = "phasemeter"
+	def _intToCycles(self, rawValue):
+	    return 2.0 * pow(2.0, 16.0) * rawValue / pow(2.0, 48.0) * _PM_ADC_SMPS / _PM_UPDATE_RATE
+	
+	def _intToHertz(self, rawValue):
+	    return 2.0 * _PM_ADC_SMPS * rawValue / pow(2.0, 48.0)
+
+	def _intToVolts(self, rawValue, scaleFactor):
+	    return 2.0 / (_PM_ADC_SMPS * _PM_ADC_SMPS / _PM_UPDATE_RATE / _PM_UPDATE_RATE) * rawValue * scaleFactor
+
+	def _update_datalogger_params(self):
+		# Call this function when any instrument configuration parameters are set
+		self.hdrstr = self.get_hdrstr()
+
+	def set_samplerate(self, samplerate):
+		""" Manually set the sample rate of the instrument.
+
+		The sample rate is automatically calcluated and set in :any:`set_timebase`; setting it through this
+		interface if you've previously set the scales through that will have unexpected results.
+
+		This interface is most useful for datalogging and similar aquisition where one will not be looking
+		at data frames.
+
+		:type samplerate: float; *0 < samplerate < 500MSPS*
+		:param samplerate: Target samples per second. Will get rounded to the nearest allowable unit.
+		"""
+		self.output_decimation = _PM_UPDATE_RATE / samplerate
+		self.timestep = 1.0 / samplerate
+		self._update_datalogger_params()
+
+	def get_samplerate(self):
+		"""
+		Get the current output sample rate of the phase meter.
+		"""
+		return _PM_UPDATE_RATE / self.output_decimation
+
+	def set_initfreq(self, ch, f):
+		""" Manually set the initial frequency of the designated channel
+
+		:type ch: int; *{1,2}*
+		:param ch: Channel number to set the initial frequency of.
+
+		:type f: int; *2e6 < f < 200e6*
+		:param f: Initial locking frequency of the designated channel
+
+		"""
+		if _PM_FREQ_MIN < f < _PM_FREQ_MAX:
+			if ch == 1:
+				self.init_freq_ch1 = int(f1);
+				self._update_datalogger_params()
+			elif ch == 2:
+				self.init_freq_ch2 = int(f2);
+				self._update_datalogger_params()
+			else:
+				raise ValueError("Invalid channel number")
+		else:
+			raise ValueError("Initial frequency is not within the valid range.")
+
+	def get_initfreq(self, ch):
+		if ch == 1:
+			return self.init_freq_ch1
+		elif ch == 2:
+			return self.init_freq_ch2
+		else:
+			raise ValeuError("Invalid channel number.")
+
+	def set_controlgain(self, v):
+		#TODO: Put limits on the range of 'v'
+		self.control_gain = v
+		self._update_datalogger_params()
+
+	def get_controlgain(self):
+		return self.control_gain
+
+	def set_frontend(self, channel, fiftyr, atten, ac):
+		super(PhaseMeter, self).set_frontend(self, channel, fiftyr, atten, ac)
+		self._update_datalogger_params()
+
+	def get_hdrstr(self):
+		# Get relay settings
+		r1 = self.get_frontend(1);
+		r2 = self.get_frontend(2);
+
+		hdr =  "# Moku:Phasemeter acquisition at {T}\r\n"
+		hdr += "# Ch 1 - {} coupling, {} Ohm impedance, {} dB attenuation\r\n".format("AC" if r1[2] else "DC", "50" if r1[0] else "1M", "20" if r1[1] else "0" )
+		hdr += "# Ch 2 - {} coupling, {} Ohm impedance, {} dB attenuation\r\n".format("AC" if r2[2] else "DC", "50" if r2[0] else "1M", "20" if r2[1] else "0" )
+		hdr += "# Loop gain {:d}, Ch1 frequency = {:.10e}, Ch 2 frequency = {:.10e}\r\n".format(self.get_controlgain(),self.get_initfreq(1),self.get_initfreq(2))
+		hdr += "# Acquisition rate: {}\r\n#\r\n".format(self.get_samplerate())
+		hdr += "# Time, Frequency offset 1 (Hz), Phase 1 (cyc), I 1 (V), Q 1 (V), Frequency offset 2 (Hz), Phase 2 (cyc), I 2 (V), Q 2 (V)\r\n"
+		return hdr
 
 	def set_defaults(self):
 		super(PhaseMeter, self).set_defaults()
+
+		# Because we have to deal with a "frame" type instrument
 		self.x_mode = _instrument.ROLL
-		self.framerate = 10
-		self.frame_length = 64
-		self.init_freq_ch1 = 10 * 10e6
-		self.init_freq_ch2 = 10 * 10e6
-		self.control_gain = 100
+		self.framerate = 0
+
+		# Set basic configurations
+		self.set_samplerate(1e3)
+		self.set_initfreq(1, 10e6)
+		self.set_initfreq(2, 10e6)
+
+		# Set PI controller gains
+		self.set_controlgain(100)
 		self.control_shift = 0
 		self.integrator_shift = 0
-		self.output_decimation = 512
 		self.output_shift = 9
-		self.pretrigger = 0
-		self.render_deci = 1.0
-		self.offset = 64
-		self.render_deci_alt = self.render_deci
-		self.offset_alt = self.offset
+
+		# Configuring the relays for impedance, voltage range etc.
+		# ?? What config do we want for phasemeter
 		self.set_frontend(1, fiftyr=True, atten=True, ac=True)
 		self.set_frontend(2, fiftyr=True, atten=True, ac=True)
+
+		self._update_datalogger_params()
+
+	def __init__(self):
+		"""Create a new PhaseMeter instrument, ready to be attached to a Moku."""
+		super(PhaseMeter, self).__init__(None)
+		self.id = 3
+		self.type = "phasemeter"
+		self.logname = "MokuPhaseMeterData"
+		self.set_defaults()
+
+		self.binstr = "<p32,0xAAAAAAAA:p32,0x55555555:s32:s32:s48:s48:s32"
+		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), self._intToHertz(1.0), self._intToHertz(1.0)),
+						"*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), self._intToHertz(1.0), self._intToHertz(1.0))]
+		self.fmtstr = "{t:.10e}, {ch1[2]:.10e}, {ch1[3]:.10e}, {ch1[0]:.10e}, {ch1[1]:.10e}, {ch2[2]:.10e}, {ch2[3]:.10e}, {ch2[0]:.10e}, {ch2[1]:.10e}\r\n"
+		self.hdrstr = self.get_hdrstr()
 
 _pm_reg_hdl = [
 	('init_freq_ch1',		(REG_PM_INITF1_H, REG_PM_INITF1_L),

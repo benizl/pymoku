@@ -53,8 +53,8 @@ _OSC_LB_CLIP		= 1
 _OSC_AIN_DDS		= 0
 _OSC_AIN_DECI		= 1
 
-_OSC_ADC_SMPS		= 500e6
-_OSC_BUFLEN			= 2**14
+_OSC_ADC_SMPS		= _instrument.ADC_SMP_RATE
+_OSC_BUFLEN			= _instrument.CHN_BUFLEN
 _OSC_SCREEN_WIDTH	= 1024
 _OSC_FPS			= 10
 
@@ -153,6 +153,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.type = "oscilloscope"
 		self.calibration = None
 
+		self.logname = "MokuDataloggerData"
 		self.binstr = "<s32"
 		self.procstr = ["*C","*C"]
 		self.fmtstr = "{t},{ch1:.8e},{ch2:.8e}\r\n"

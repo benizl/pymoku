@@ -246,6 +246,11 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if not all([ len(s) for s in [self.binstr, self.procstr, self.fmtstr, self.hdrstr]]):
 			raise InvalidOperationException("Instrument currently doesn't support data logging")
 
+		# We have to be in this mode anyway because of the above check, but rewriting this register and committing
+		# is necessary in order to reset the channel buffers on the device and flush them of old data.
+		self.x_mode = _instrument.ROLL
+		self.commit()
+
 		self._moku._stream_prep(ch1=ch1, ch2=ch2, start=start, end=start + duration, timestep=self.timestep,
 			binstr=self.binstr, procstr=self.procstr, fmtstr=self.fmtstr, hdrstr=self.hdrstr,
 			fname=fname, ftype=filetype, tag=self.tag, use_sd=use_sd)

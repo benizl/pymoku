@@ -210,6 +210,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		:raises InvalidOperationException: if the sample rate is too high for the selected filetype or if the
 		device *x_mode* isn't set to *ROLL*.
 
+		:note: Start parameter not currently implemented!
+
 		:param start: Start time in seconds from the time of function call
 		:param duration: Log duration in seconds
 		:type use_sd: bool
@@ -235,6 +237,12 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self.nch = 2 if ch1 and ch2 else 1
 
 		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
+
+		# Currently the data stream genesis is from the x_mode commit below, meaning that delayed start
+		# doesn't work properly. Once this is fixed in the FPGA/daemon, remove this check and the note
+		# in the documentation above.
+		if start:
+			raise InvalidOperationException("Logging start time parameter currently not supported")
 
 		maxrates = { 'bin' : 10000, 'csv' : 1000, 'net' : 100, 'plot' : 10}
 		if 1 / self.timestep > maxrates[filetype]:

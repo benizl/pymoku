@@ -1,5 +1,6 @@
 
 import select, socket, struct, sys
+import os, os.path
 import logging, time, threading
 import zmq
 
@@ -422,6 +423,16 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
 				if f[0].startswith(target):
+					# Don't overwrite existing files of the name name. This would be nicer
+					# if we could pass receive_file a local filename to save to, but until
+					# that change is made, just move the clashing file out of the way.
+					if os.path.exists(f[0]):
+						i = 1
+						while os.path.exists(f[0] + ("-%d" % i)):
+							i += 1
+
+						os.rename(f[0], f[0] + ("-%d" % i))
+
 					# Data length of zero uploads the whole file
 					self._moku._receive_file(mp, f[0], 0)
 					uploaded += 1

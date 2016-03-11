@@ -21,15 +21,9 @@ else:
 	print "Attached to existing Phase Meter"
 
 i.set_defaults()
-i.set_buffer_length(4)
-
-i.init_freq_ch1 = 10e6
-i.init_freq_ch2 = 10e6
-i.control_gain = 100
-i.control_shift = 0
-i.integrator_shift = 4
-i.framerate = 10 #TODO should remove this when we figure out network buffering
-
+i.set_initfreq(1, 6e6)
+i.set_initfreq(2, 6e6)
+i.set_samplerate(100)
 i.commit()
 
 t = [0.1 * x for x in range(100)]

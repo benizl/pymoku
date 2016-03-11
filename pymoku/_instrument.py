@@ -28,6 +28,7 @@ REG_STATE	= 63
 
 # Common instrument parameters
 ADC_SMP_RATE = 500e6
+DAC_SMP_RATE = 1e9
 CHN_BUFLEN = 2**14
 
 ### None of these constants will be exported to pymoku.instruments. If an instrument wants to

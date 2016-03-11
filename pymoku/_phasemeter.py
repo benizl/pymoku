@@ -19,8 +19,8 @@ log = logging.getLogger(__name__)
 
 REG_PM_INITF1_H = 65
 REG_PM_INITF1_L = 64
-REG_PM_INITF2_H = 68
-REG_PM_INITF2_L = 69
+REG_PM_INITF2_L = 68
+REG_PM_INITF2_H = 69
 REG_PM_CGAIN = 66
 REG_PM_INTSHIFT = 66
 REG_PM_CSHIFT = 66
@@ -29,8 +29,9 @@ REG_PM_OUTSHIFT = 67
 
 # Phasemeter specific instrument constants
 _PM_ADC_SMPS = _instrument.ADC_SMP_RATE
+_PM_DAC_SMPS = _instrument.DAC_SMP_RATE
 _PM_BUFLEN = _instrument.CHN_BUFLEN
-_PM_FREQSCALE = 2.0**48 / _PM_ADC_SMPS
+_PM_FREQSCALE = 2.0**48 / _PM_DAC_SMPS
 _PM_FREQ_MIN = 2e6
 _PM_FREQ_MAX = 200e6
 _PM_UPDATE_RATE = 1e6
@@ -106,10 +107,10 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		"""
 		if _PM_FREQ_MIN < f < _PM_FREQ_MAX:
 			if ch == 1:
-				self.init_freq_ch1 = int(f1);
+				self.init_freq_ch1 = int(f);
 				self._update_datalogger_params()
 			elif ch == 2:
-				self.init_freq_ch2 = int(f2);
+				self.init_freq_ch2 = int(f);
 				self._update_datalogger_params()
 			else:
 				raise ValueError("Invalid channel number")
@@ -133,7 +134,8 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		return self.control_gain
 
 	def set_frontend(self, channel, fiftyr, atten, ac):
-		super(PhaseMeter, self).set_frontend(self, channel, fiftyr, atten, ac)
+		#TODO update the _instrument class to automatically run an update callback on instrument summary
+		super(PhaseMeter, self).set_frontend(channel, fiftyr, atten, ac)
 		self._update_datalogger_params()
 
 	def get_hdrstr(self):
@@ -183,8 +185,8 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		self.set_defaults()
 
 		self.binstr = "<p32,0xAAAAAAAA:p32,0x55555555:s32:s32:s48:s48:s32"
-		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), self._intToHertz(1.0), self._intToHertz(1.0)),
-						"*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), self._intToHertz(1.0), self._intToHertz(1.0))]
+		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0)),
+						"*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0))]
 		self.fmtstr = "{t:.10e}, {ch1[2]:.10e}, {ch1[3]:.10e}, {ch1[0]:.10e}, {ch1[1]:.10e}, {ch2[2]:.10e}, {ch2[3]:.10e}, {ch2[0]:.10e}, {ch2[1]:.10e}\r\n"
 		self.hdrstr = self.get_hdrstr()
 
@@ -201,8 +203,8 @@ _pm_reg_hdl = [
 											lambda rval: (rval >> 20) & 0xF),
 	('integrator_shift',	REG_PM_INTSHIFT,lambda f, old: (_usgn(f, 4) << 16) | (old & ~0xF0000),
 											lambda rval: (rval >> 16) & 0xF),
-	('output_decimation',	REG_PM_OUTDEC,	lambda f, old: _usgn(f, 10) | (old & ~0x3FF),
-											lambda rval: rval & 0x3FF),
+	('output_decimation',	REG_PM_OUTDEC,	lambda f, old: _usgn(f, 17) | (old & ~0x1FFFF),
+											lambda rval: rval & 0x1FFFF),
 	('output_shift',		REG_PM_OUTSHIFT,lambda f, old: (_usgn(f, 4) << 10) | (old & ~0x3C00),
 											lambda rval: (rval >> 10) & 0xF),
 ]

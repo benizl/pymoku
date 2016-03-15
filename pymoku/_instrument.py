@@ -10,7 +10,7 @@ REG_CTL 	= 0
 REG_STAT	= 1
 REG_ID1		= 2
 REG_ID2		= 3
-REG_RES1	= 4
+REG_PAUSE	= 4
 REG_OUTLEN	= 5
 REG_FILT	= 6
 REG_FRATE	= 7
@@ -26,6 +26,11 @@ REG_CAL1, REG_CAL2, REG_CAL3, REG_CAL4, REG_CAL5, REG_CAL6, REG_CAL7, REG_CAL8 =
 REG_CAL9, REG_CAL10 = range(24, 26)
 REG_STATE	= 63
 
+# Common instrument parameters
+ADC_SMP_RATE = 500e6
+DAC_SMP_RATE = 1e9
+CHN_BUFLEN = 2**14
+
 ### None of these constants will be exported to pymoku.instruments. If an instrument wants to
 ### give users access to these (e.g. relay settings) then the Instrument should define their
 ### own symbols equal to these guys
@@ -38,7 +43,6 @@ INSTR_RST	= 0x00000001
 ROLL		= (1 << 29)
 SWEEP		= (1 << 30)
 FULL_FRAME	= 0
-PAUSE		= (1 << 31)
 
 # REG_FILT Constants
 RDR_CUBIC	= 0
@@ -277,6 +281,23 @@ class MokuInstrument(object):
 		elif channel == 2:
 			self.relays_ch2 = relays
 
+	def get_frontend(self, channel):
+		"""
+		:type channel: int
+		:param channel: Channel for which the relay settings are being retrieved
+
+		Return array of bool with the front end configuration of channels
+		[0] 50 Ohm
+		[1] 10xAttenuation
+		[2] AC Coupling
+		"""
+		if channel == 1:
+			r = self.relays_ch1
+		elif channel == 2:
+			r = self.relays_ch2
+
+		return [bool(r & RELAY_LOWZ), bool(r & RELAY_LOWG), not bool(r & RELAY_DC)]
+
 _instr_reg_hdl = [
 	# Name, Register, set-transform (user to register), get-transform (register to user); either None is W/R-only
 	('instr_id',		REG_ID1, None, lambda rval: rval & 0xFF),
@@ -287,8 +308,10 @@ _instr_reg_hdl = [
 									lambda rval: (rval & 0x10000000) >> 28),
 	('frame_length',	REG_OUTLEN, lambda l, old: (old & ~0x3FF) | _usgn(l, 12),
 									lambda rval: rval & 0x3FF),
-	('x_mode',			REG_OUTLEN, lambda m, old: ((old & ~0xE0000000) | m) if m in [ROLL, SWEEP, FULL_FRAME] else None,
-									lambda rval: rval & 0xE0000000),
+	('pause',			REG_PAUSE,	lambda m, old: (old & ~1) | (1 if m else 0),
+									lambda rval: (rval & 1) != 0),
+	('x_mode',			REG_OUTLEN, lambda m, old: ((old & ~0x60000000) | m) if m in [ROLL, SWEEP, FULL_FRAME] else None,
+									lambda rval: rval & 0x60000000),
 	('render_mode',		REG_FILT,	lambda f, old: f if f in [RDR_CUBIC, RDR_MINMAX, RDR_DECI, RDR_DDS ] else None,
 									lambda rval: rval),
 	('framerate',		REG_FRATE,	lambda f, old: _usgn(f * 256.0 / 477.0, 8),

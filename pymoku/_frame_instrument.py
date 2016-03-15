@@ -237,7 +237,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self.tag = "%04d" % self._dlserial
 		self.nch = 2 if ch1 and ch2 else 1
 
-		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
+		fname = datetime.now().strftime(self.logname+"_%Y%m%d_%H%M")
 
 		# Currently the data stream genesis is from the x_mode commit below, meaning that delayed start
 		# doesn't work properly. Once this is fixed in the FPGA/daemon, remove this check and the note
@@ -297,7 +297,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self.tag = "%04d" % self._dlserial
 		self.nch = 2 if ch1 and ch2 else 1
 
-		fname = datetime.now().strftime("datalog-%Y%m%d-%H%M")
+		fname = datetime.now().strftime(self.logname+"_%Y%m%d_%H%M")
 
 		if not all([ len(s) for s in [self.binstr, self.procstr, self.fmtstr, self.hdrstr]]):
 			raise InvalidOperationException("Instrument currently doesn't support data logging")
@@ -390,7 +390,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		The base filename doesn't include the file extension as multiple files might be
 		recorded simultaneously with different extensions."""
-		return self.datalogger_status()[4].strip()
+		return str(self.datalogger_status()[4]).strip()
 
 	def datalogger_error(self):
 		""" Returns a string representing the current error, or *None* if the session is not in error."""
@@ -418,11 +418,10 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 
 		uploaded = 0
 		target = self.datalogger_filename()
-
 		# Check internal and external storage
 		for mp in ['i', 'e']:
 			for f in self._moku._fs_list(mp):
-				if f[0].startswith(target):
+				if str(f[0]).startswith(target):
 					# Don't overwrite existing files of the name name. This would be nicer
 					# if we could pass receive_file a local filename to save to, but until
 					# that change is made, just move the clashing file out of the way.
@@ -550,26 +549,27 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 			log.exception("HB")
 
 	def _frame_worker(self):
-		ctx = zmq.Context.instance()
-		skt = ctx.socket(zmq.SUB)
-		skt.connect("tcp://%s:27185" % self._moku._ip)
-		skt.setsockopt_string(zmq.SUBSCRIBE, u'')
-		skt.setsockopt(zmq.CONFLATE, 1)
-		skt.setsockopt(zmq.LINGER, 5000)
+		if(self.frame_class):
+			ctx = zmq.Context.instance()
+			skt = ctx.socket(zmq.SUB)
+			skt.connect("tcp://%s:27185" % self._moku._ip)
+			skt.setsockopt_string(zmq.SUBSCRIBE, u'')
+			skt.setsockopt(zmq.CONFLATE, 1)
+			skt.setsockopt(zmq.LINGER, 5000)
 
-		fr = self.frame_class(**self.frame_kwargs)
+			fr = self.frame_class(**self.frame_kwargs)
 
-		try:
-			while self._running:
-				if skt in zmq.select([skt], [], [], 1.0)[0]:
-					d = skt.recv()
-					fr.add_packet(d)
+			try:
+				while self._running:
+					if skt in zmq.select([skt], [], [], 1.0)[0]:
+						d = skt.recv()
+						fr.add_packet(d)
 
-					if fr.complete:
-						self._queue.put_nowait(fr)
-						fr = self.frame_class(**self.frame_kwargs)
-		finally:
-			skt.close()
+						if fr.complete:
+							self._queue.put_nowait(fr)
+							fr = self.frame_class(**self.frame_kwargs)
+			finally:
+				skt.close()
 
 	def _heartbeat_worker(self):
 		hs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

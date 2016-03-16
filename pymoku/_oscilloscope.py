@@ -331,15 +331,14 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		sect2 = "calibration.AG-%s-%s-%s-1" % ( "50" if self.relays_ch2 & RELAY_LOWZ else "1M",
 								  "L" if self.relays_ch2 & RELAY_LOWG else "H",
 								  "D" if self.relays_ch2 & RELAY_DC else "A")
-
-		log.debug("calibration values for sections %s, %s = %f, %f; deci %f", sect1, sect2, float(self.calibration[sect1]), float(self.calibration[sect2]), self._deci_gain())
-
 		try:
 			g1 = 1 / float(self.calibration[sect1])
 			g2 = 1 / float(self.calibration[sect2])
 		except (KeyError, TypeError):
 			log.warning("Moku appears uncalibrated")
 			g1 = g2 = 1
+
+		log.debug("gain values for sections %s, %s = %f, %f; deci %f", sect1, sect2, g1, g2, self._deci_gain())
 
 		if self.ain_mode == _OSC_AIN_DECI:
 			g1 /= self._deci_gain()

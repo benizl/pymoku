@@ -21,7 +21,7 @@ try:
 	i.datalogger_start(start=0, duration=10, use_sd=True, ch1=True, ch2=True, filetype='bin')
 
 	while True:
-		time.sleep(1)
+		#time.sleep(1)
 		trems, treme = i.datalogger_remaining()
 		samples = i.datalogger_samples()
 		print "Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme)

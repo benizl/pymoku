@@ -95,6 +95,9 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		"""
 		return _PM_UPDATE_RATE / self.output_decimation
 
+	def get_timestep(self):
+		return self.timestep
+
 	def set_initfreq(self, ch, f):
 		""" Manually set the initial frequency of the designated channel
 

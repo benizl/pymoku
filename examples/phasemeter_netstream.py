@@ -7,7 +7,7 @@
 #
 # (c) 2016 Liquid Instruments Pty. Ltd.
 #
-from pymoku import Moku
+from pymoku import Moku, NoDataException
 from pymoku.instruments import *
 import time, logging
 
@@ -15,18 +15,16 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.INFO)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku('192.168.1.108')
+m = Moku.get_by_name('example')
 
-#i = m.discover_instrument()
-i = PhaseMeter()
-m.attach_instrument(i)
+i = m.discover_instrument()
 
-'''if i is None or i.type != 'phasemeter':
+if i is None or i.type != 'phasemeter':
 	print "No or wrong instrument deployed"
 	i = PhaseMeter()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Phasemeter"'''
+	print "Attached to existing Phasemeter"
 
 try:
 	# It's recommended to set default values for the instrument, otherwise the user
@@ -40,7 +38,7 @@ try:
 	i.set_initfreq(2, 6e6)
 
 	# The sample rate must be set <=100Hz to avoid data loss so we set it to 100Hz
-	i.set_samplerate(10)
+	i.set_samplerate(100)
 
 	# Atomically apply all instrument settings above
 	i.commit()
@@ -55,33 +53,22 @@ try:
 	#		Channel 1 - ON, Channel 2 - ON
 	#		Log file type - Network Stream
 	i.datalogger_stop()
-	i.datalogger_start(start=0, duration=20, use_sd=True, ch1=True, ch2=True, filetype='net')
+	i.datalogger_start(start=0, duration=20, use_sd=True, ch1=True, ch2=False, filetype='net')
 	print "Sample rate: %.10e, Timestep: %.10e" % (i.get_samplerate(), i.get_timestep())
 
-
 	while True:
-		# Give Moku device time to accrue samples
-		#time.sleep(1)
-
 		# Get samples
-		ch, idx, samp = i.datalogger_get_samples()
-		print "Ch: %d, Idx: %d, Samples: %s" % (ch, idx, len(samp))
-
-		# Print current session info
-		trems, treme = i.datalogger_remaining()
-		samples = i.datalogger_samples()
-		print "Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme)
-
-		# Process the samples here
-		
-		for s in samp:
-			# Do something with s[0:3]
-			print s
-		
-
-		# Check if the logging session has finished
-		if i.datalogger_completed():
+		try:
+			ch, idx, samp = i.datalogger_get_samples(timeout=5)
+		except NoDataException as e:
+			print "Data stream complete"
 			break
+
+		print "Ch: %d, Idx: %d, #Samples: %s" % (ch, idx, len(samp))
+
+		for s in samp:
+			# Process the samples here
+			print s
 
 	# Check if there were any errors
 	e = i.datalogger_error()

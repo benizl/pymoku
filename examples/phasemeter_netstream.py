@@ -53,8 +53,7 @@ try:
 	#		Channel 1 - ON, Channel 2 - ON
 	#		Log file type - Network Stream
 	i.datalogger_stop()
-	i.datalogger_start(start=0, duration=20, use_sd=True, ch1=True, ch2=False, filetype='net')
-	print "Sample rate: %.10e, Timestep: %.10e" % (i.get_samplerate(), i.get_timestep())
+	i.datalogger_start(start=0, duration=10, use_sd=True, ch1=True, ch2=True, filetype='net')
 
 	while True:
 		# Get samples

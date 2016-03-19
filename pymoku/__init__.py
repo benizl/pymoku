@@ -310,10 +310,13 @@ class Moku(object):
 		pkt += fname
 		pkt += struct.pack("<H", len(binstr))
 		pkt += binstr
-		pkt += struct.pack("<H", len(procstr[0]))
-		pkt += procstr[0]
-		pkt += struct.pack("<H", len(procstr[1]))
-		pkt += procstr[1]
+
+		print "Proc string _init_: %s", procstr
+		for i,ch in enumerate([ch1,ch2]):
+			if ch:
+				pkt += struct.pack("<H", len(procstr[i]))
+				pkt += procstr[i]
+
 		pkt += struct.pack("<H", len(fmtstr))
 		pkt += fmtstr
 		pkt += struct.pack("<H", len(hdrstr))

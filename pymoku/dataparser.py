@@ -48,7 +48,7 @@ class LIDataFileReader(object):
 		:type filename: str
 		:param filename: Input filename
 		"""
-		self.records = [[],[]]
+		self.records = []
 		self.cal = []
 		self.proc = []
 		self.file = open(filename, 'rb')
@@ -61,8 +61,6 @@ class LIDataFileReader(object):
 
 		#: Number of (valid) channels in input file
 		self.nch = 0
-
-		# Should have ch1, ch2 identifiers in the header instead
 
 		#: Numeric Instrument identifier
 		self.instr = 0
@@ -84,26 +82,30 @@ class LIDataFileReader(object):
 			raise InvalidFileException("Unknown File Version %s" % v)
 
 		pkthdr_len = struct.unpack("<H", f.read(2))[0]
-		self.nch, self.instr, self.instrv, self.deltat, self.starttime = struct.unpack("<BBHdQ", f.read(20))
+		self.chs, self.instr, self.instrv, self.deltat, self.starttime = struct.unpack("<BBHdQ", f.read(20))
+
+		# Extract the ON channels from the flagged bits
+		self.nch = 0
+		if (self.chs & 0x01):
+			self.nch += 1
+		if (self.chs & 0x02):
+			self.nch += 1
 
 		log.debug("NCH %d INST: %d INSTV: %d DT: %f ST: %f", self.nch, self.instr, self.instrv, self.deltat, self.starttime)
 
-		cal = struct.unpack("<d", f.read(8))[0]
-		for i in [0,1]:
-			self.cal.append(cal)
+		# Do this nch times
+		for i in range(self.nch):
+			self.cal.append(struct.unpack("<d", f.read(8))[0])
 
 		log.debug("CAL: %s", self.cal)
 
 		reclen = struct.unpack("<H", f.read(2))[0]
 		self.rec = f.read(reclen); log.debug("Rec %s (%d)", self.rec, reclen)
 
-		# Assume 2 procstrings (1 per channel)
-		proclen = []
-		for i in [0,1]:
-			proclen.append(struct.unpack("<H", f.read(2))[0])
-			self.proc.append(f.read(proclen[i]));
-
-		log.debug("Proc %s (%s)", str(self.proc), str(proclen))
+		# One procstring per channel ON
+		for i in range(self.nch):
+			proclen = struct.unpack("<H", f.read(2))[0]
+			self.proc.append(f.read(proclen));
 
 		fmtlen = struct.unpack("<H", f.read(2))[0]
 		self.fmt = f.read(fmtlen); log.debug("Fmt %s (%d)", self.fmt, fmtlen)
@@ -122,7 +124,7 @@ class LIDataFileReader(object):
 		if f.tell() != pkthdr_len + 5:
 			raise InvalidFileException("Incorrect File Header Length (expected %d got %d)" % (pkthdr_len + 5, f.tell()))
 
-		self.parser = LIDataParser(self.nch, self.rec, self.proc, self.fmt, self.hdr, self.deltat, self.starttime, self.cal[:])
+		self.parser = LIDataParser(self.ch1, self.ch2, self.rec, self.proc, self.fmt, self.hdr, self.deltat, self.starttime, self.cal)
 
 
 	def _parse_chunk(self):
@@ -223,16 +225,16 @@ class LIDataFileReader(object):
 
 class LIDataFileWriter(object):
 	""" Eases the creation of LI format data files."""
-	def __init__(self, filename, instr, instrv, nch, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime):
+	def __init__(self, filename, instr, instrv, chs, binstr, procstr, fmtstr, hdrstr, calcoeffs, timestep, starttime):
 		""" Create object and write the header information.
 		Not designed for general use, is likely to only be of utility in the Moku:Lab firmware.
 
 		:param filename: Output file name
 		:param instr: Numeric instrument identifier
 		:param instrv: Numberic instrument version
-		:param nch: Number of valid channels being recorded
+		:param chs: Channel ON/OFF flags
 		:param binstr: Format string representing the binary data from the instrument
-		:param procstr: String representing the record processing to apply to the data
+		:param procstr: String array representing the record processing to apply to the data of each channel
 		:param fmtstr: Format string describing the transformation from data records to CSV output
 		:param hdrstr: Format string describing the header lines on a CSV output
 		:param calcoeffs: Array of calibration coefficients for the data being acquired
@@ -240,9 +242,14 @@ class LIDataFileWriter(object):
 		:param starttime: Time at which the record was started, seconds since Jan 1 1970
 		"""
 		self.file = open(filename, 'wb')
-
+		nch = 0
+		if (chs & 0x01):
+			nch +=1
+		if (chs & 0x02):
+			nch +=1
+		
 		self.file.write('LI1')
-		hdr = struct.pack("<BBHdQ", nch, instr, instrv, timestep, starttime)
+		hdr = struct.pack("<BBHdQ", chs, instr, instrv, timestep, starttime)
 
 		for i in range(nch):
 			hdr += struct.pack('<d', calcoeffs[i])
@@ -332,7 +339,7 @@ class LIDataParser(object):
 		return fmt
 
 
-	def __init__(self, nch, binstr, procstr, fmtstr, hdrstr, deltat, starttime, calcoeffs):
+	def __init__(self, ch1, ch2, binstr, procstr, fmtstr, hdrstr, deltat, starttime, calcoeffs):
 
 		if not len(binstr):
 			raise InvalidFormatException("Can't use empty binary record string")
@@ -341,16 +348,18 @@ class LIDataParser(object):
 		self.recordlen = sum(zip(*self.binfmt)[1])
 		self.procstr = procstr
 
-		# This parser assumes two channels but the input file may only be 1
-		#while len(calcoeffs) < 2:
-		#	calcoeffs.append(0)
+		self.nch = 0
+		self.ch1 = bool(ch1)
+		self.ch2 = bool(ch2)
+
+		if self.ch1:
+			self.nch += 1
+		if self.ch2:
+			self.nch += 1
 
 		self.procfmt = []
-		for ch in [0,1]:
+		for ch in range(self.nch):
 			self.procfmt.append(LIDataParser._parse_procstr(procstr[ch], calcoeffs[ch]))
-
-		self.nch = nch
-		self.dcache = ['', '']
 
 		self.fmtdict = {
 			'T' : datetime.datetime.fromtimestamp(starttime).strftime('%c'), # TODO: Nicely formatted datetime string
@@ -359,16 +368,18 @@ class LIDataParser(object):
 			'n' : 0,
 		}
 		self.fmt = fmtstr
-
 		self.dout = hdrstr.format(**self.fmtdict)
 
-		self.records = [[], []]
-		self.processed = [[], []]
-		self._currecord = [[], []]
-		self._currfmt = [[], []]
+		# We should be doing this based on number of channels
+		self.dcache 	= ['' for x in range(self.nch)]
+		self.records 	= [[] for x in range(self.nch)]
+		self.processed 	= [[] for x in range(self.nch)]
+		self._currecord = [[] for x in range(self.nch)]
+		self._currfmt 	= [[] for x in range(self.nch)]
 
 	def _process_records(self):
-		for ch in [0, 1]:
+		#for ch in [0, 1]:
+		for ch in range(self.nch):
 			for record in self.records[ch]:
 				rec = []
 				for field, ops in zip(record, self.procfmt[ch]):
@@ -393,22 +404,27 @@ class LIDataParser(object):
 					self.processed[ch].append(rec[0])
 
 		# Remove all processed records
-		self.records = [[],[]]
-
+		self.records = [[] for x in range(self.nch)]
 
 	def _format_records(self):
 		new_data = []
+
+		# Single channel logging
 		if self.nch == 1:
-			for rec1 in self.processed[0]:
+			for rec in self.processed[0]:
 				self.fmtdict['n'] += 1
 				self.fmtdict['t'] = (self.fmtdict['n'] - 1) * self.fmtdict['d']
-				new_data.append(self.fmt.format(ch1=rec1, ch2=0, **self.fmtdict))
+				if self.ch1:
+					new_data.append(self.fmt.format(ch1=rec, **self.fmtdict))
+				else:
+					new_data.append(self.fmt.format(ch2=rec, **self.fmtdict))
 
 			self.dout += ''.join(new_data)
 
 			return len(self.processed[0])
 		else:
 			i = 0
+			print self.processed
 			for rec1, rec2 in zip(*self.processed):
 				self.fmtdict['n'] += 1
 				self.fmtdict['t'] = (self.fmtdict['n'] - 1) * self.fmtdict['d']
@@ -443,7 +459,7 @@ class LIDataParser(object):
 		Called by the data consumer to indicate that it's no longer of use (e.g. has been
 		written to a file or otherwise processed)."""
 		if _len is None:
-			self.processed = [[], []]
+			self.processed = [[] for x in range(self.nch)]
 		else:
 			# Clear out the raw and processed records so we can stream
 			# chunk at a time
@@ -455,30 +471,36 @@ class LIDataParser(object):
 		# the bitarray package but that's ~3x slower than the string version and
 		# the bitstring package is around 7x slower.
 
+		# Convert channel number to processing array index
+		if ch == 0 or self.nch == 1:
+			chidx = 0
+		elif ch == 1:
+			chidx = 1
+
 		# This is all hard-coded little-endian; we reverse the bitstrings at the
 		# byte level here, then reverse them again at the field level below to
 		# correctly parse the fields LE.
-		self.dcache[ch] += ''.join([ "{:08b}".format(d)[::-1] for d in bytearray(data) ])
+		self.dcache[chidx] += ''.join([ "{:08b}".format(d)[::-1] for d in bytearray(data) ])
 
 		#print ch
 		#print ''.join([ "{:02X}".format(ord(x)) for x in data])
 
 		while True:
-			if not len(self._currfmt[ch]):
-				self._currfmt[ch] = self.binfmt[:]
+			if not len(self._currfmt[chidx]):
+				self._currfmt[chidx] = self.binfmt[:]
 
-				if len(self._currecord[ch]):
-					self.records[ch].append(self._currecord[ch])
-				self._currecord[ch] = []
+				if len(self._currecord[chidx]):
+					self.records[chidx].append(self._currecord[chidx])
+				self._currecord[chidx] = []
 
-			_type, _len, lit = self._currfmt[ch][0]
+			_type, _len, lit = self._currfmt[chidx][0]
 
-			if len(self.dcache[ch]) < _len:
+			if len(self.dcache[chidx]) < _len:
 				break
 
 			# TODO: This is hard-coded little endian. Need to correctly handle the endianness specifier
 			# in the binary format string.
-			candidate = self.dcache[ch][:_len][::-1]
+			candidate = self.dcache[chidx][:_len][::-1]
 
 			if _type in 'up':
 				val = int(candidate, 2)
@@ -504,23 +526,23 @@ class LIDataParser(object):
 
 			if not lit or val == lit:
 				if _type != 'p':
-					self._currecord[ch].append(val)
-				self._currfmt[ch] = self._currfmt[ch][1:]
+					self._currecord[chidx].append(val)
+				self._currfmt[chidx] = self._currfmt[chidx][1:]
 
 				# Drop off the whole successfully-matched field.
-				self.dcache[ch] = self.dcache[ch][_len:]
+				self.dcache[chidx] = self.dcache[chidx][_len:]
 			else:
 				# If we fail a literal match, drop the entire pattern and start again
-				log.debug("Literal mismatch (%d != %d), dropped partial record %s", val, lit, str(self._currecord[ch]))
-				self._currecord[ch] = []
-				self._currfmt[ch] = []
+				log.debug("Literal mismatch (%d != %d), dropped partial record %s", val, lit, str(self._currecord[chidx]))
+				self._currecord[chidx] = []
+				self._currfmt[chidx] = []
 
 				# Drop off a byte, assuming that that is the base granulatity at which the data has been captured
-				self.dcache[ch] = self.dcache[ch][8:]
+				self.dcache[chidx] = self.dcache[chidx][8:]
 			
 
-		if len(self._currecord[ch]) and not len(self._currfmt[ch]):
-			self.records[ch].append(self._currecord[ch])
+		if len(self._currecord[chidx]) and not len(self._currfmt[chidx]):
+			self.records[chidx].append(self._currecord[chidx])
 
 
 	def parse(self, data, ch):

@@ -121,6 +121,26 @@ class VoltsFrame(_frame_instrument.DataFrame):
 		return True
 
 class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator):
+
+	def get_hdrstr(self, ch1, ch2):
+		chs = [ch1, ch2]
+
+		hdr = "Moku:Lab Data Logger\r\nStart,{{T}}\r\nSample Rate {} Hz\r\nTime".format(self.get_samplerate())
+		for i,c in enumerate(chs):
+			if c:
+				hdr += ", Channel {i}".format(i=i+1)
+		hdr += "\r\n"
+		return hdr
+
+	def get_fmtstr(self, ch1, ch2):
+		chs = [ch1, ch2]
+		fmtstr = "{t}"
+		for i,c in enumerate(chs):
+			if c:
+				fmtstr += ",{{ch{i}:.8e}}".format(i=i+1)
+		fmtstr += "\r\n"
+		return fmtstr
+
 	""" Oscilloscope instrument object. This should be instantiated and attached to a :any:`Moku` instance.
 
 	.. automethod:: pymoku.instruments.Oscilloscope.__init__
@@ -156,8 +176,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.logname = "MokuDataloggerData"
 		self.binstr = "<s32"
 		self.procstr = ["*C","*C"]
-		self.fmtstr = "{t},{ch1:.8e},{ch2:.8e}\r\n"
-		self.hdrstr = "Moku:Lab Data Logger\r\nStart,{T}\r\nSample Rate,{d}\r\nTime,Channel 1,Channel 2\r\n"
 		self.timestep = 1
 
 		self.decimation_rate = 1
@@ -210,7 +228,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		else:
 			return self.decimation_rate / 2**10
 
-	def _update_datalogger_params(self):
+	def _update_datalogger_params(self, ch1, ch2):
 		samplerate = _OSC_ADC_SMPS / self.decimation_rate
 		self.timestep = 1 / samplerate
 
@@ -220,6 +238,16 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		else:
 			self.procstr[0] = "*C"
 			self.procstr[1] = "*C"
+		self.fmtstr = self.get_fmtstr(ch1,ch2)
+		self.hdrstr = self.get_hdrstr(ch1,ch2)
+
+	def datalogger_start(self, start, duration, use_sd, ch1, ch2, filetype):
+		self._update_datalogger_params(ch1, ch2)
+		super(Oscilloscope, self).datalogger_start(start=start, duration=duration, use_sd=use_sd, ch1=ch1, ch2=ch2, filetype=filetype)
+
+	def datalogger_start_single(self, use_sd, ch1, ch2, filetype):
+		self._update_datalogger_params(ch1, ch2)
+		super(Oscilloscope, self).datalogger_start_single(use_sd=use_sd, ch1=ch1, ch2=ch2, filetype=filetype)
 
 	def _set_render(self, t1, t2, decimation):
 		self.render_mode = RDR_CUBIC #TODO: Support other
@@ -248,8 +276,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.decimation_rate = self._optimal_decimation(t1, t2)
 		self._set_render(t1, t2, self.decimation_rate)
 
-		self._update_datalogger_params()
-
 	def set_samplerate(self, samplerate):
 		""" Manually set the sample rate of the instrument.
 
@@ -263,7 +289,9 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:param samplerate: Target samples per second. Will get rounded to the nearest allowable unit.
 		"""
 		self.decimation_rate = _OSC_ADC_SMPS / samplerate
-		self._update_datalogger_params()
+
+	def get_samplerate(self):
+		return _OSC_ADC_SMPS / self.decimation_rate
 
 	def set_xmode(self, xmode):
 		"""
@@ -284,7 +312,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:param state: Select Precision Mode
 		:type state: bool """
 		self.ain_mode = _OSC_AIN_DECI if state else _OSC_AIN_DDS
-		self._update_datalogger_params()
 
 	def set_trigger(self, source, edge, level, hysteresis=0, hf_reject=False, mode=OSC_TRIG_AUTO):
 		""" Sets trigger source and parameters.

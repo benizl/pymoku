@@ -193,7 +193,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self._dlskt.connect("tcp://%s:27186" % self._moku._ip)
 		self._dlskt.setsockopt_string(zmq.SUBSCRIBE, unicode(tag))
 
-		self._strparser = dataparser.LIDataParser(self.nch, self.binstr, self.procstr, self.fmtstr, self.hdrstr, self.timestep, time.time(), [0] * self.nch)
+		self._strparser = dataparser.LIDataParser(self.ch1, self.ch2, self.binstr, self.procstr, self.fmtstr, self.hdrstr, self.timestep, time.time(), [0] * self.nch)
 
 
 	def _dlsub_destroy(self):
@@ -235,7 +235,14 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self._dlserial += 1
 
 		self.tag = "%04d" % self._dlserial
-		self.nch = 2 if ch1 and ch2 else 1
+
+		self.nch = 0
+		self.ch1 = bool(ch1)
+		self.ch2 = bool(ch2)
+		if ch1:
+			self.nch += 1
+		if ch2:
+			self.nch += 1
 
 		fname = datetime.now().strftime(self.logname+"_%Y%m%d_%H%M")
 
@@ -295,7 +302,14 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self._dlserial += 1
 
 		self.tag = "%04d" % self._dlserial
-		self.nch = 2 if ch1 and ch2 else 1
+
+		self.nch = 0
+		self.ch1 = bool(ch1)
+		self.ch2 = bool(ch2)
+		if ch1:
+			self.nch += 1
+		if ch2:
+			self.nch += 1
 
 		fname = datetime.now().strftime(self.logname+"_%Y%m%d_%H%M")
 

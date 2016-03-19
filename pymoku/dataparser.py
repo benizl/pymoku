@@ -48,7 +48,7 @@ class LIDataFileReader(object):
 		:type filename: str
 		:param filename: Input filename
 		"""
-		self.records = []
+		self.records = [[],[]]
 		self.cal = []
 		self.proc = []
 		self.file = open(filename, 'rb')
@@ -61,6 +61,8 @@ class LIDataFileReader(object):
 
 		#: Number of (valid) channels in input file
 		self.nch = 0
+
+		# Should have ch1, ch2 identifiers in the header instead
 
 		#: Numeric Instrument identifier
 		self.instr = 0
@@ -86,17 +88,18 @@ class LIDataFileReader(object):
 
 		log.debug("NCH %d INST: %d INSTV: %d DT: %f ST: %f", self.nch, self.instr, self.instrv, self.deltat, self.starttime)
 
-		for i in range(self.nch):
-			self.cal.append(struct.unpack("<d", f.read(8))[0])
+		cal = struct.unpack("<d", f.read(8))[0]
+		for i in [0,1]:
+			self.cal.append(cal)
 
 		log.debug("CAL: %s", self.cal)
 
 		reclen = struct.unpack("<H", f.read(2))[0]
 		self.rec = f.read(reclen); log.debug("Rec %s (%d)", self.rec, reclen)
 
-		# One proc string per channel
+		# Assume 2 procstrings (1 per channel)
 		proclen = []
-		for i in range(self.nch):
+		for i in [0,1]:
 			proclen.append(struct.unpack("<H", f.read(2))[0])
 			self.proc.append(f.read(proclen[i]));
 
@@ -118,8 +121,6 @@ class LIDataFileReader(object):
 
 		if f.tell() != pkthdr_len + 5:
 			raise InvalidFileException("Incorrect File Header Length (expected %d got %d)" % (pkthdr_len + 5, f.tell()))
-
-		for i in range(self.nch): self.records.append([])
 
 		self.parser = LIDataParser(self.nch, self.rec, self.proc, self.fmt, self.hdr, self.deltat, self.starttime, self.cal[:])
 
@@ -341,11 +342,11 @@ class LIDataParser(object):
 		self.procstr = procstr
 
 		# This parser assumes two channels but the input file may only be 1
-		while len(calcoeffs) < 2:
-			calcoeffs.append(0)
+		#while len(calcoeffs) < 2:
+		#	calcoeffs.append(0)
 
 		self.procfmt = []
-		for ch in range(nch):
+		for ch in [0,1]:
 			self.procfmt.append(LIDataParser._parse_procstr(procstr[ch], calcoeffs[ch]))
 
 		self.nch = nch

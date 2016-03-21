@@ -6,7 +6,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.INFO)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku('192.168.1.104')
+m = Moku.get_by_name('example')
 
 i = Oscilloscope()
 m.attach_instrument(i)
@@ -21,7 +21,7 @@ try:
 	i.datalogger_start(start=0, duration=10, use_sd=True, ch1=True, ch2=True, filetype='bin')
 
 	while True:
-		#time.sleep(1)
+		time.sleep(1)
 		trems, treme = i.datalogger_remaining()
 		samples = i.datalogger_samples()
 		print "Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme)

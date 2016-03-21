@@ -84,11 +84,13 @@ class LIDataFileReader(object):
 		pkthdr_len = struct.unpack("<H", f.read(2))[0]
 		self.chs, self.instr, self.instrv, self.deltat, self.starttime = struct.unpack("<BBHdQ", f.read(20))
 
-		# Extract the ON channels from the flagged bits
+		# Extract the selected channels
 		self.nch = 0
-		if (self.chs & 0x01):
+		self.ch1 = bool(self.chs & 0x01)
+		self.ch2 = bool(self.chs & 0x02)
+		if (self.ch1):
 			self.nch += 1
-		if (self.chs & 0x02):
+		if (self.ch2):
 			self.nch += 1
 
 		log.debug("NCH %d INST: %d INSTV: %d DT: %f ST: %f", self.nch, self.instr, self.instrv, self.deltat, self.starttime)
@@ -102,7 +104,6 @@ class LIDataFileReader(object):
 		reclen = struct.unpack("<H", f.read(2))[0]
 		self.rec = f.read(reclen); log.debug("Rec %s (%d)", self.rec, reclen)
 
-		# One procstring per channel ON
 		for i in range(self.nch):
 			proclen = struct.unpack("<H", f.read(2))[0]
 			self.proc.append(f.read(proclen));
@@ -232,7 +233,7 @@ class LIDataFileWriter(object):
 		:param filename: Output file name
 		:param instr: Numeric instrument identifier
 		:param instrv: Numberic instrument version
-		:param chs: Channel ON/OFF flags
+		:param chs: Channel selection flags
 		:param binstr: Format string representing the binary data from the instrument
 		:param procstr: String array representing the record processing to apply to the data of each channel
 		:param fmtstr: Format string describing the transformation from data records to CSV output

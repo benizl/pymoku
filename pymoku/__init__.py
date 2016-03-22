@@ -311,10 +311,17 @@ class Moku(object):
 		pkt += struct.pack("<H", len(binstr))
 		pkt += binstr
 
+		# Build up a single procstring with "|" as a delimiter
+		# TODO: Allow empty procstrings
+		procstr_pkt = ''
 		for i,ch in enumerate([ch1,ch2]):
 			if ch:
-				pkt += struct.pack("<H", len(procstr[i]))
-				pkt += procstr[i]
+				if len(procstr_pkt):
+					procstr_pkt += '|'
+				procstr_pkt += procstr[i]
+
+		pkt += struct.pack("<H", len(procstr_pkt))
+		pkt += procstr_pkt
 
 		pkt += struct.pack("<H", len(fmtstr))
 		pkt += fmtstr

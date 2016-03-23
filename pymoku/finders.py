@@ -6,13 +6,22 @@ class BonjourFinder(object):
 		self.moku_list = []
 		self.resolved = []
 		self.queried = []
+		self.finished = False
+		self.filter_callback = None
+		self.max_results = 0
 		self.pversion = ''
 		self.timeout = 5
 
 	def query_record_callback(self, sdRef, flags, interfaceIndex, errorCode, fullname,
 							  rrtype, rrclass, rdata, ttl):
 		if errorCode == pybonjour.kDNSServiceErr_NoError:
-			self.moku_list.append(socket.inet_ntoa(rdata))
+			ip = socket.inet_ntoa(rdata)
+			if self.filter_callback is None or self.filter_callback(ip):
+				self.moku_list.append(ip)
+
+			if self.max_results and len(self.moku_list) >= self.max_results:
+				self.finished = True
+
 			self.queried.append(True)
 
 
@@ -72,9 +81,11 @@ class BonjourFinder(object):
 			resolve_sdRef.close()
 
 
-	def find_all(self, protocol_version='6', timeout=5):
+	def find_all(self, protocol_version='6', timeout=5, max_results=0, filter_callback=None):
 		self.pversion = protocol_version
 		self.timeout = timeout
+		self.max_results = max_results
+		self.filter_callback = filter_callback
 		self.moku_list = []
 
 		browse_sdRef = pybonjour.DNSServiceBrowse(regtype = '_moku._tcp',
@@ -83,8 +94,10 @@ class BonjourFinder(object):
 		start = time.time()
 		try:
 			try:
-				while time.time() - start < timeout:
-					ready = select.select([browse_sdRef], [], [], self.timeout)
+				while time.time() - start < timeout and not self.finished:
+					# Basically have to reduce this to polling so we can check the finished
+					# flag with good responsiveness
+					ready = select.select([browse_sdRef], [], [], 0.1)
 					if browse_sdRef in ready[0]:
 						pybonjour.DNSServiceProcessResult(browse_sdRef)
 			except KeyboardInterrupt:

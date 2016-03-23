@@ -51,16 +51,21 @@ class Moku(object):
 		self.led_colours = None
 
 	@staticmethod
-	def list_mokus():
+	def list_mokus(timeout=5):
 		""" Discovers all compatible Moku instances on the network.
-		This list can be interrogated to find the IP address of the target Moku:Lab hardware, suitable
-		to be passed to the :any:`Moku` constructor.
+
+		For most applications, the user should use the *get_by_* functions below. These
+		functions are faster to return as they don't have to wait to find and validate
+		all Moku devices on the network, they can look for a specific one.
+
+		:type timeout: float
+		:param timeout: time for which to search for Moku devices
 
 		:rtype: [(ip, serial, name),...]
 		:return: List of tuples, one per Moku
 		"""
 		known_mokus = []
-		ips = BonjourFinder().find_all(timeout=2)
+		ips = BonjourFinder().find_all(timeout=timeout)
 
 		for ip in ips:
 			try:
@@ -68,49 +73,82 @@ class Moku(object):
 				name = m.get_name()
 				ser = m.get_serial()
 				known_mokus.append((ip, ser, name))
+				m.close()
 			except:
 				continue
 
 		return known_mokus
 
 	@staticmethod
-	def get_by_ip(ip_addr):
+	def get_by_ip(ip_addr, timeout=10):
 		"""
 		Factory function, returns a :any:`Moku` instance with the given IP address.
 
 		This works in a similar way to instantiating the instance manually but will perform
 		version and compatibility checks first.
 
-		If none is found, raises :any:`MokuNotFound`"""
-		for ip, ser, name in Moku.list_mokus():
-			if ip == ip_addr:
-				return Moku(ip)
+		:type ip_addr: str
+		:param ip_addr: target IP address
+		:type timeout: float
+		:param timeout: operation timeout
+		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
+		def _filter(ip):
+			return ip == ip_addr
 
-		raise MokuNotFound("Couldn't find Moku:%s" % ip_addr)
+		mokus = BonjourFinder().find_all(max_results=1, filter_callback=_filter, timeout=timeout)
+
+		if len(mokus):
+			return Moku(mokus[0])
+
+		raise MokuNotFound("Couldn't find Moku: %s" % ip_addr)
 
 	@staticmethod
-	def get_by_serial(serial):
+	def get_by_serial(serial, timeout=10):
 		"""
 		Factory function, returns a :any:`Moku` instance with the given Serial number.
 
-		If none is found, raises :any:`MokuNotFound`"""
-		for ip, ser, name in Moku.list_mokus():
-			if ser.lower() == serial.lower():
-				return Moku(ip)
+		:type ip_addr: str
+		:param ip_addr: target serial
+		:type timeout: float
+		:param timeout: operation timeout
+		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
+		def _filter(ip):
+			m = Moku(ip)
+			ser = m.get_serial()
+			m.close()
 
-		raise MokuNotFound("Couldn't find Moku:%s" % serial)
+			return ser == serial
+
+		mokus = BonjourFinder().find_all(max_results=1, filter_callback=_filter, timeout=timeout)
+
+		if len(mokus):
+			return Moku(mokus[0])
+
+		raise MokuNotFound("Couldn't find Moku: %s" % serial)
 
 	@staticmethod
-	def get_by_name(name):
+	def get_by_name(name, timeout=10):
 		"""
 		Factory function, returns a :any:`Moku` instance with the given name.
 
-		If none is found, raises :any:`MokuNotFound`"""
-		for ip, ser, nm in Moku.list_mokus():
-			if name.lower() == nm.lower():
-				return Moku(ip)
+		:type ip_addr: str
+		:param ip_addr: target device name
+		:type timeout: float
+		:param timeout: operation timeout
+		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
+		def _filter(ip):
+			m = Moku(ip)
+			n = m.get_name()
+			m.close()
 
-		raise MokuNotFound("Couldn't find Moku:%s" % name)
+			return n == name
+
+		mokus = BonjourFinder().find_all(max_results=1, filter_callback=_filter, timeout=timeout)
+
+		if len(mokus):
+			return Moku(mokus[0])
+
+		raise MokuNotFound("Couldn't find Moku: %s" % name)
 
 
 	def _read_regs(self, commands):

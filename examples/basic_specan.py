@@ -22,6 +22,7 @@ else:
 
 i.set_defaults()
 i.set_buffer_length(4)
+i.framerate = 2
 
 i.set_span(0e6, 100e6)
 i.commit()

@@ -42,7 +42,7 @@ _SA_BUFLEN			= 2**14
 _SA_SCREEN_WIDTH	= 1024
 _SA_SCREEN_STEPS	= _SA_SCREEN_WIDTH - 1
 _SA_FPS				= 10
-_SA_FFT_LENGTH		= 8192
+_SA_FFT_LENGTH		= 8192/2
 
 _SA_FREQ_SCALE		= 2**32 / _SA_ADC_SMPS
 
@@ -184,13 +184,13 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		self.set_rbw(None)
 		self.set_window(SA_WIN_BH)
 
+	def _calculate_decimations(self, f1, f2):
+		# Computes the decimations given the input span
+		# Doesn't guarantee a total decimation of the ideal value, even if such an integer sequence exists
+		fspan = f2 - f1
+		ideal = math.floor(_SA_ADC_SMPS / 2.0 /  fspan)
 
-	def _set_decimations(self):
-		fspan = self.f2 - self.f1
-
-		ideal = math.floor(_SA_ADC_SMPS / fspan / 8.0)
-
-		if ideal < 2:
+		if ideal < 4:
 			d1 = 1
 			d2 = d3 = d4 = 1
 		else:
@@ -205,6 +205,12 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 			d4 = min(max(math.floor(dec), 1), 16)
 
+		return [d1, d2, d3, d4, ideal]
+
+	def _set_decimations(self):
+		d1, d2, d3, d4, ideal = self._calculate_decimations(self.f1, self.f2)
+
+		# d1 can only be x4 decimation
 		self.dec_enable = d1 == 4
 		self.dec_cic2 = d2
 		self.dec_cic3 = d3
@@ -217,22 +223,26 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 		log.debug("Decimations: %d %d %d %d = %d (ideal %f)", d1, d2, d3, d4, self._total_decimation, ideal)
 
-	def _magic(self):
+	def _setup_controls(self):
+		# This function sets all relevant registers based on chosen settings
+		# Set the CIC decimations
 		self._set_decimations()
 
-		self.demod = self.f2
+		# Mix the signal down to DC using maximum span frequency
+		self.demod = self._f2_full
 
-		fspan = self.f2 - self.f1
-		buffer_span = _SA_ADC_SMPS / 2.0 / self._total_decimation;
+		fspan = self._f2_full - self._f1_full
+		buffer_span = _SA_ADC_SMPS / 2.0 / self._total_decimation
 
-		self.render_dds = min(max(math.ceil(fspan / buffer_span * _SA_FFT_LENGTH / _SA_SCREEN_STEPS), 1), 4)
+		self.render_dds = min(max(math.ceil(fspan / buffer_span * _SA_FFT_LENGTH/ _SA_SCREEN_STEPS), 1.0), 4.0)
 		self.render_dds_alt = self.render_dds
 
-		filter_set = _SA_IIR_COEFFS[self.dec_iir]
+		filter_set = _SA_IIR_COEFFS[self.dec_iir-1]
 		self.gain_sos0, self.a1_sos0, self.a2_sos0, self.b1_sos0 = filter_set[0:4]
 		self.gain_sos1, self.a1_sos1, self.a2_sos1, self.b1_sos1 = filter_set[4:8]
 		self.gain_sos2, self.a1_sos2, self.a2_sos2, self.b1_sos2 = filter_set[8:12]
 
+		# Calculate RBW
 		window_factor = _SA_WINDOW_WIDTH[self.window]
 		fbin_resolution = _SA_ADC_SMPS / 2.0 / _SA_FFT_LENGTH / self._total_decimation
 
@@ -240,16 +250,50 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		rbw = self.rbw or 5 * fspan / _SA_SCREEN_WIDTH
 
 		rbw = min(max(rbw, 17.0 / 16.0 * fbin_resolution * window_factor), 2.0**10.0 * fbin_resolution * window_factor)
-
+		
 		self.rbw_ratio = round(rbw / window_factor / fbin_resolution)
 
 		self.ref_level = 6
 
-		log.debug("DM: %d BS: %f, RD: %f, W:%d, RBW: %f, RBR: %f", self.demod, buffer_span, self.render_deci, self.window, rbw, self.rbw_ratio)
+		log.debug("DM: %f FS: %f, BS: %f, RD: %f, W:%d, RBW: %f, RBR: %f", self.demod, fspan, buffer_span, self.render_dds, self.window, rbw, self.rbw_ratio)
 
 	def set_span(self, f1, f2):
+		# TODO: Enforce f2 > f1
 		self.f1 = f1
 		self.f2 = f2
+
+		# Fullspan variables are cleared
+		self._f1_full = f1
+		self._f2_full = f2
+
+	def set_fullspan(self,f1,f2):
+		# This sets the fullspan frequencies _f1_full, _f2_full to the nearest buffspan
+		# Allowing a full FFT frame to be valid data
+
+		# Set the actual input frequencies
+		self.f1 = f1
+		self.f2 = f2
+		fspan = f2 - f1
+
+		# Get the decimations that would be used for this input fspan
+		d1, d2, d3, d4, ideal = self._calculate_decimations(f1, f2)
+		total_deci = d1 * d2 * d3 * d4
+
+		# Compute the resulting buffspan
+		bufspan = _SA_ADC_SMPS / 2.0 / total_deci
+
+		# Force the _f1_full, _f2_full to the nearest bufspan
+		# Move f2 up first
+		d_span = bufspan - fspan
+		# Find out how much spillover there will be
+		high_remainder = ((f2 + d_span)%(_SA_ADC_SMPS/2.0)) if(f2 + d_span > _SA_ADC_SMPS/2.0) else 0.0
+
+		new_f2 = min(f2 + d_span, _SA_ADC_SMPS/2.0)
+		new_f1 = max(f1 - high_remainder, 0.0)
+		log.debug("Setting Full Span: (f1, %f), (f2, %f), (fspan, %f), (bufspan, %f) -> (f1_full, %f), (f2_full, %f), (fspan_full, %f)", f1, f2, fspan, bufspan, new_f1, new_f2, new_f2-new_f1)
+
+		self._f1_full = new_f1
+		self._f2_full = new_f2
 
 	def set_rbw(self, rbw=None):
 		self.rbw = rbw
@@ -309,11 +353,16 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 
 	def commit(self):
-		self._magic()
+		# Compute remaining control register values based on window, rbw and fspan
+		self._setup_controls()
 
+		# Push the controls through to the device
 		super(SpecAn, self).commit()
 
+		# Update the scaling factors for processing of incoming frames
+		# stateid allows us to track which scales correspond to which register state
 		self.scales[self._stateid] = self._calculate_scales()
+
 		# TODO: Trim scales dictionary, getting rid of old ids
 
 	# Bring in the docstring from the superclass for our docco.
@@ -322,6 +371,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 	def attach_moku(self, moku):
 		super(SpecAn, self).attach_moku(moku)
 
+		# The moku contains calibration data for various configurations
 		self.calibration = dict(self._moku._get_property_section("calibration"))
 
 	attach_moku.__doc__ = _instrument.MokuInstrument.attach_moku.__doc__
@@ -330,16 +380,16 @@ _sa_reg_hdl = [
 	('demod',			REG_SA_DEMOD,		lambda r, old: _usgn(r * _SA_FREQ_SCALE, 32), lambda rval: rval / _SA_FREQ_SCALE),
 	('dec_enable',		REG_SA_DECCTL,		lambda r, old: (old & ~1) | int(r) if int(r) in [0, 1] else None,
 											lambda rval: bool(rval & 1)),
-	('dec_cic2',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7E) | _usgn(r + 1, 6) << 1,
-											lambda rval: (rval & 0x7E >> 1) - 1),
+	('dec_cic2',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7E) | _usgn(r - 1, 6) << 1,
+											lambda rval: (rval & 0x7E >> 1) + 1),
 	('bs_cic2',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780) | _usgn(r, 4) << 7,
 											lambda rval: rval & 0x780 >> 7),
-	('dec_cic3',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7800) | _usgn(r + 1, 4) << 11,
-											lambda rval: (rval & 0x7800 >> 11) - 1),
+	('dec_cic3',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7800) | _usgn(r - 1, 4) << 11,
+											lambda rval: (rval & 0x7800 >> 11) + 1),
 	('bs_cic3',			REG_SA_DECCTL,		lambda r, old: (old & ~0x78000) | _usgn(r, 4) << 15,
 											lambda rval: rval & 0x78000 >> 15),
-	('dec_iir',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780000) | _usgn(r + 1, 4) << 19,
-											lambda rval: (rval & 0x780000 >> 19) - 1),
+	('dec_iir',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780000) | _usgn(r - 1, 4) << 19,
+											lambda rval: (rval & 0x780000 >> 19) + 1),
 	('rbw_ratio',		REG_SA_RBW,			lambda r, old: (old & ~0xFFFFFF) | _usgn(r * 2**10, 24),
 											lambda rval: (rval & 0xFFFFFF) / 2**10),
 	('window',			REG_SA_RBW,			lambda r, old: (old & ~0x3000000) | r << 24 if r in [SA_WIN_NONE, SA_WIN_BH, SA_WIN_HANNING, SA_WIN_FLATTOP] else None,

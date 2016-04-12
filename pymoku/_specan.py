@@ -1,4 +1,4 @@
-
+import numpy
 import math
 import logging
 
@@ -114,13 +114,20 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 
 		# TODO: This should associate the frequency span, RBW etc.
 
+		# Assume the same frequency span is associated with both channels
+		self.fs = []
+
 	def process_complete(self):
 
 		if self.stateid not in self.scales:
 			log.error("Can't render specan frame, haven't saved calibration data for state %d", self.stateid)
 			return
 
-		scale1, scale2 = self.scales[self.stateid]
+		scales = self.scales[self.stateid]
+		# Do more processing here based on current instrument state (i.e. rbw, decimation gains)
+		scale1 = scales['g1']
+		scale2 = scales['g2']
+		f1, f2 = scales['fs']
 
 		try:
 			smpls = int(len(self.raw1) / 4)
@@ -132,12 +139,18 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 			self.ch1_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:1024]) ]
 			self.ch1 = [ x * scale1 if x is not None else None for x in self.ch1_bits]
 
+			# Put the frequencies in here
+			self.ch1_fs = numpy.linspace(f1,f2,_SA_SCREEN_WIDTH)
+
 			smpls = int(len(self.raw2) / 4)
 			dat = struct.unpack('<' + 'i' * smpls, self.raw2)
 			dat = [ x if x != -0x80000000 else None for x in dat ]
 
 			self.ch2_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:1024]) ]
 			self.ch2 = [ x * scale2 if x is not None else None for x in self.ch2_bits]
+
+			# Put the frequencies in here
+			self.ch2_fs = numpy.linspace(f1,f2,_SA_SCREEN_WIDTH)
 		except (IndexError, TypeError, struct.error):
 			# If the data is bollocksed, force a reinitialisation on next packet
 			log.exception("SpecAn packet")
@@ -146,6 +159,42 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 
 		# A valid frame is there's at least one valid sample in each channel
 		return any(self.ch1) and any(self.ch2)
+
+	'''
+		Plotting helper functions
+	'''
+	def _get_freqScale(self, f):
+		# Returns a scaling factor and units for frequency 'X'
+		if(f > 1e6):
+			scale_str = 'MHz'
+			scale_const = 1e-6
+		elif (f > 1e3):
+			scale_str = 'kHz'
+			scale_const = 1e-3
+		elif (f > 1):
+			scale_str = 'Hz'
+			scale_const = 1
+		elif (f > 1e-3):
+			scale_str = 'mHz'
+			scale_const = 1e3
+		else:
+			scale_str = 'uHz'
+			scale_const = 1e6
+
+		return [scale_str,scale_const]
+
+	def get_freqFmt(self,x,pos):
+		if self.stateid not in self.scales:
+			log.error("Can't get current frequency format, haven't saved calibration data for state %d", self.stateid)
+			return
+
+		scales = self.scales[self.stateid]
+		f1, f2 = scales['fs']
+
+		fscale_str, fscale_const = self._get_freqScale(f2)
+
+		return '%.1f %s' % (x*fscale_const, fscale_str)
+
 
 class SpecAn(_frame_instrument.FrameBasedInstrument):
 	""" Spectrum Analyser instrument object. This should be instantiated and attached to a :any:`Moku` instance.
@@ -245,10 +294,8 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		# Calculate RBW
 		window_factor = _SA_WINDOW_WIDTH[self.window]
 		fbin_resolution = _SA_ADC_SMPS / 2.0 / _SA_FFT_LENGTH / self._total_decimation
-
 		# "Auto" RBW is 5 screen points
 		rbw = self.rbw or 5 * fspan / _SA_SCREEN_WIDTH
-
 		rbw = min(max(rbw, 17.0 / 16.0 * fbin_resolution * window_factor), 2.0**10.0 * fbin_resolution * window_factor)
 		
 		self.rbw_ratio = round(rbw / window_factor / fbin_resolution)
@@ -347,9 +394,9 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		g1 *= filt_gain * window_gain * self.rbw_ratio
 		g2 *= filt_gain * window_gain * self.rbw_ratio
 
-		log.debug("Scales %f/%f", g1, g2)
+		log.debug("Scales: %f,%f,%f,%f", g1, g2, self._f1_full, self._f2_full)
 
-		return (g1, g2)
+		return {'g1': g1, 'g2': g2, 'fs': [self._f1_full, self._f2_full]}
 
 
 	def commit(self):

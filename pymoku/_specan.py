@@ -6,6 +6,8 @@ from _instrument import *
 import _instrument
 import _frame_instrument
 
+from bisect import bisect_right
+
 # Annoying that import * doesn't pick up function defs??
 _sgn = _instrument._sgn
 _usgn = _instrument._usgn
@@ -79,6 +81,12 @@ _SA_IIR_COEFFS = [
 	[	4092,	-31923,	15667,	-30719,	2232,	-30701,	14444,	-29046,	824,	-29974,	13717,	-12446	]
 ]
 
+'''
+_DECIMATIONS_TABLE = sorted([ (d1 * (d2+1) * (d3+1) * (d4+1), d1, d2+1, d3+1, d4+1)
+								for d1 in [4]
+								for d2 in range(64)
+								for d3 in range(16)
+								for d4 in range(16)], key=lambda x: (x[0],x[4],x[3]))'''
 
 class SpectrumFrame(_frame_instrument.DataFrame):
 	"""
@@ -238,11 +246,16 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		# Doesn't guarantee a total decimation of the ideal value, even if such an integer sequence exists
 		fspan = f2 - f1
 		ideal = math.floor(_SA_ADC_SMPS / 2.0 /  fspan)
-
 		if ideal < 4:
 			d1 = 1
 			d2 = d3 = d4 = 1
 		else:
+			# Put some optimal algorithm here to compute the decimations
+			'''deci_idx = bisect_right(_DECIMATIONS_TABLE, (ideal,99,99,99,99))
+			deci, d1, d2, d3, d4 = _DECIMATIONS_TABLE[deci_idx - 1]
+
+			print "Table entry: %d, %d, %d, %d, %d, %d" % (deci_idx-1, deci, d1, d2, d3, d4)'''
+
 			d1 = 4
 			dec = ideal / d1
 
@@ -428,15 +441,15 @@ _sa_reg_hdl = [
 	('dec_enable',		REG_SA_DECCTL,		lambda r, old: (old & ~1) | int(r) if int(r) in [0, 1] else None,
 											lambda rval: bool(rval & 1)),
 	('dec_cic2',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7E) | _usgn(r - 1, 6) << 1,
-											lambda rval: (rval & 0x7E >> 1) + 1),
+											lambda rval: ((rval & 0x7E) >> 1) + 1),
 	('bs_cic2',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780) | _usgn(r, 4) << 7,
 											lambda rval: rval & 0x780 >> 7),
 	('dec_cic3',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7800) | _usgn(r - 1, 4) << 11,
-											lambda rval: (rval & 0x7800 >> 11) + 1),
+											lambda rval: ((rval & 0x7800) >> 11) + 1),
 	('bs_cic3',			REG_SA_DECCTL,		lambda r, old: (old & ~0x78000) | _usgn(r, 4) << 15,
 											lambda rval: rval & 0x78000 >> 15),
 	('dec_iir',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780000) | _usgn(r - 1, 4) << 19,
-											lambda rval: (rval & 0x780000 >> 19) + 1),
+											lambda rval: ((rval & 0x780000) >> 19) + 1),
 	('rbw_ratio',		REG_SA_RBW,			lambda r, old: (old & ~0xFFFFFF) | _usgn(r * 2**10, 24),
 											lambda rval: (rval & 0xFFFFFF) / 2**10),
 	('window',			REG_SA_RBW,			lambda r, old: (old & ~0x3000000) | r << 24 if r in [SA_WIN_NONE, SA_WIN_BH, SA_WIN_HANNING, SA_WIN_FLATTOP] else None,

@@ -44,7 +44,7 @@ plt.yscale('log')
 plt.ion()
 plt.show()
 plt.grid(b=True)
-plt.ylim([0, 100000])
+plt.ylim([0, 1000000])
 plt.autoscale(axis='x',tight=True)
 
 try:

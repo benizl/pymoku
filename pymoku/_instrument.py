@@ -144,7 +144,7 @@ def _sgn(i, width):
 
 	if i >= 0:
 		return int(i)
-
+		
 	return int(2**width + i)
 
 def _upsgn(i, width):

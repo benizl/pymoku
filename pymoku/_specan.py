@@ -81,6 +81,44 @@ _SA_IIR_COEFFS = [
 	[	4092,	-31923,	15667,	-30719,	2232,	-30701,	14444,	-29046,	824,	-29974,	13717,	-12446	]
 ]
 
+_SA_ADC_FREQ_RESP_0 = [ 1.0000,
+    1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
+    1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
+    1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
+    1.0000, 1.0000, 1.0001, 1.0006, 1.0015, 1.0028, 1.0041, 1.0053, 1.0061, 1.0064, 1.0056, 1.0052, 1.0048, 1.0039, 1.0034, 1.0024,
+    1.0012, 0.9999, 0.9983, 0.9971, 0.9953, 0.9936, 0.9922, 0.9910, 0.9894, 0.9877, 0.9866, 0.9860, 0.9863, 0.9862, 0.9868, 0.9867,
+    0.9873, 0.9881, 0.9891, 0.9901, 0.9908, 0.9913, 0.9922, 0.9935, 0.9940, 0.9941, 0.9936, 0.9927, 0.9923, 0.9911, 0.9897, 0.9876,
+    0.9853, 0.9826, 0.9801, 0.9776, 0.9753, 0.9731, 0.9707, 0.9685, 0.9663, 0.9641, 0.9627, 0.9618, 0.9615, 0.9611, 0.9605, 0.9602,
+    0.9601, 0.9604, 0.9607, 0.9609, 0.9613, 0.9613, 0.9616, 0.9615, 0.9606, 0.9602, 0.9593, 0.9586, 0.9570, 0.9554, 0.9536, 0.9518,
+    0.9496, 0.9473, 0.9451, 0.9429, 0.9408, 0.9388, 0.9368, 0.9355, 0.9343, 0.9342, 0.9336, 0.9335, 0.9330, 0.9333, 0.9328, 0.9328,
+    0.9328, 0.9325, 0.9317, 0.9304, 0.9296, 0.9283, 0.9266, 0.9245, 0.9211, 0.9180, 0.9142, 0.9100, 0.9058, 0.9009, 0.8964, 0.8917,
+    0.8875, 0.8829, 0.8788, 0.8748, 0.8713, 0.8687, 0.8661, 0.8644, 0.8626, 0.8618, 0.8617, 0.8625, 0.8631, 0.8650, 0.8663, 0.8678,
+    0.8685, 0.8691, 0.8703, 0.8708, 0.8712, 0.8706, 0.8691, 0.8661, 0.8621, 0.8569, 0.8510, 0.8442, 0.8366, 0.8285, 0.8198, 0.8107,
+    0.8015, 0.7916, 0.7824, 0.7732, 0.7659, 0.7581, 0.7519, 0.7460, 0.7415, 0.7375, 0.7338, 0.7312, 0.7298, 0.7295, 0.7297, 0.7306,
+    0.7322, 0.7341, 0.7362, 0.7381, 0.7403, 0.7417, 0.7425, 0.7420, 0.7406, 0.7378, 0.7338, 0.7283, 0.7219, 0.7138, 0.7049, 0.6945,
+    0.6839, 0.6721, 0.6601, 0.6480, 0.6364, 0.6250, 0.6142, 0.6039, 0.5945, 0.5863, 0.5784, 0.5716, 0.5656, 0.5610, 0.5572, 0.5543,
+    0.5519, 0.5503, 0.5498, 0.5500, 0.5505, 0.5509, 0.5517, 0.5521, 0.5518, 0.5510, 0.5497, 0.5476, 0.5453, 0.5427, 0.5404, 0.5383 ]
+    
+_SA_ADC_FREQ_RESP_20 = [ 1.0000,
+    1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
+    1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
+    1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000,
+    1.0000, 1.0000, 0.9999, 0.9993, 0.9996, 1.0003, 1.0008, 1.0010, 1.0004, 1.0007, 1.0006, 1.0003, 0.9999, 0.9993, 0.9984, 0.9978,
+    0.9975, 0.9972, 0.9968, 0.9956, 0.9944, 0.9940, 0.9928, 0.9921, 0.9916, 0.9921, 0.9927, 0.9928, 0.9926, 0.9923, 0.9923, 0.9923,
+    0.9922, 0.9923, 0.9931, 0.9947, 0.9954, 0.9968, 0.9978, 0.9982, 0.9985, 0.9983, 0.9985, 0.9991, 0.9993, 1.0000, 0.9999, 0.9996,
+    0.9989, 0.9986, 0.9982, 0.9981, 0.9976, 0.9973, 0.9970, 0.9962, 0.9957, 0.9950, 0.9944, 0.9940, 0.9940, 0.9939, 0.9940, 0.9937,
+    0.9943, 0.9942, 0.9953, 0.9959, 0.9967, 0.9973, 0.9971, 0.9977, 0.9981, 0.9986, 0.9984, 0.9982, 0.9972, 0.9970, 0.9963, 0.9954,
+    0.9944, 0.9933, 0.9926, 0.9917, 0.9900, 0.9888, 0.9876, 0.9876, 0.9873, 0.9861, 0.9850, 0.9840, 0.9839, 0.9839, 0.9840, 0.9843,
+    0.9842, 0.9836, 0.9821, 0.9818, 0.9819, 0.9820, 0.9810, 0.9794, 0.9776, 0.9760, 0.9741, 0.9720, 0.9698, 0.9674, 0.9654, 0.9621,
+    0.9586, 0.9555, 0.9516, 0.9486, 0.9455, 0.9429, 0.9403, 0.9381, 0.9365, 0.9357, 0.9344, 0.9319, 0.9303, 0.9304, 0.9301, 0.9298,
+    0.9280, 0.9271, 0.9272, 0.9264, 0.9259, 0.9254, 0.9247, 0.9247, 0.9229, 0.9204, 0.9179, 0.9160, 0.9138, 0.9109, 0.9056, 0.9019,
+    0.8952, 0.8893, 0.8830, 0.8773, 0.8732, 0.8694, 0.8627, 0.8562, 0.8468, 0.8389, 0.8318, 0.8258, 0.8225, 0.8173, 0.8135, 0.8088,
+    0.8051, 0.8018, 0.7992, 0.7970, 0.7952, 0.7929, 0.7914, 0.7902, 0.7888, 0.7865, 0.7839, 0.7815, 0.7778, 0.7739, 0.7696, 0.7652,
+    0.7595, 0.7526, 0.7453, 0.7387, 0.7310, 0.7228, 0.7139, 0.7054, 0.6965, 0.6872, 0.6786, 0.6702, 0.6619, 0.6538, 0.6452, 0.6385,
+    0.6320, 0.6270, 0.6211, 0.6158, 0.6107, 0.6061, 0.6016, 0.5972, 0.5929, 0.5895, 0.5863, 0.5832, 0.5814, 0.5794, 0.5780, 0.5765 ]
+
+
+
 '''
 _DECIMATIONS_TABLE = sorted([ (d1 * (d2+1) * (d3+1) * (d4+1), d1, d2+1, d3+1, d4+1)
 								for d1 in [4]
@@ -125,6 +163,28 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 		# Assume the same frequency span is associated with both channels
 		self.fs = []
 
+	'''
+		Post processing functions
+	'''
+	def _calculate_adc_freq_resp(self, f, atten):
+		frac_idx = f/_SA_ADC_SMPS/2.0
+
+		floatIndex = (len(_SA_ADC_FREQ_RESP_0) - 1) * min(max(frac_idx,0.0),1.0)
+
+		r = _SA_ADC_FREQ_RESP_20 if atten else _SA_ADC_FREQ_RESP_0
+
+		# Return linear interpolation of table values
+		correction = r[int(math.floor(floatIndex))] + (floatIndex - math.floor(floatIndex))*(r[int(math.ceil(floatIndex))] - r[int(math.floor(floatIndex))])
+		print "Correction ADC: f - %f, scale - %f" % (f, correction)
+		return correction
+
+	def _calculate_cic_freq_resp(self, f, dec, order):
+		freq = f/_SA_ADC_SMPS
+		correction = 1.0 if (freq == 0.0) else pow(math.fabs(math.sin(math.pi*freq*dec)/(math.sin(math.pi*freq)*dec)),order)
+
+		print "Correction CIC: f - %f, scale - %f" % (f, correction)
+		return correction
+
 	def process_complete(self):
 
 		if self.stateid not in self.scales:
@@ -136,29 +196,35 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 		scale1 = scales['g1']
 		scale2 = scales['g2']
 		f1, f2 = scales['fs']
+		startf = scales['startf']
+		fstep = scales['fstep']
 
 		try:
+			# Calculate the frequencies first
+			self.ch1_fs = [(startf + fstep*i) for i in range(_SA_SCREEN_WIDTH) if ((startf + fstep*i) >= f1) ]
+			self.ch2_fs = self.ch1_fs
+			valid_pts = len(self.ch1_fs)
+
 			smpls = int(len(self.raw1) / 4)
 			dat = struct.unpack('<' + 'i' * smpls, self.raw1)
 			dat = [ x if x != -0x80000000 else None for x in dat ]
 
 			# SpecAn data is backwards because $(EXPLETIVE), also remove zeros for the sake of common
 			# display on a log axis.
-			self.ch1_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:1024]) ]
-			self.ch1 = [ x * scale1 if x is not None else None for x in self.ch1_bits]
-
-			# Put the frequencies in here
-			self.ch1_fs = numpy.linspace(f1,f2,_SA_SCREEN_WIDTH)
+			self.ch1_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:valid_pts]) ]
+			self.ch1_uncorr = [ x * scale1 if x is not None else None for x in self.ch1_bits]
 
 			smpls = int(len(self.raw2) / 4)
 			dat = struct.unpack('<' + 'i' * smpls, self.raw2)
 			dat = [ x if x != -0x80000000 else None for x in dat ]
 
-			self.ch2_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:1024]) ]
-			self.ch2 = [ x * scale2 if x is not None else None for x in self.ch2_bits]
+			self.ch2_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:valid_pts]) ]
+			self.ch2_uncorr = [ x * scale2 if x is not None else None for x in self.ch2_bits]
 
-			# Put the frequencies in here
-			self.ch2_fs = numpy.linspace(f1,f2,_SA_SCREEN_WIDTH)
+			# Post process for frequency response corrections
+			# TODO: Use actual relay attenuation value
+			self.ch1 = [ self.ch1_uncorr[i] / self._calculate_adc_freq_resp(startf + fstep*i, True) / self._calculate_cic_freq_resp(startf + fstep*i, 4, 10) for i in range(len(self.ch1_uncorr))]
+			self.ch2 = [ self.ch2_uncorr[i] / self._calculate_adc_freq_resp(startf + fstep*i, True) / self._calculate_cic_freq_resp(startf + fstep*i, 4, 10) for i in range(len(self.ch2_uncorr))]
 		except (IndexError, TypeError, struct.error):
 			# If the data is bollocksed, force a reinitialisation on next packet
 			log.exception("SpecAn packet")
@@ -245,8 +311,8 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		# Computes the decimations given the input span
 		# Doesn't guarantee a total decimation of the ideal value, even if such an integer sequence exists
 		fspan = f2 - f1
-		ideal = math.floor(_SA_ADC_SMPS / 2.0 /  fspan)
-		if ideal < 4:
+		ideal = math.floor(_SA_ADC_SMPS / 8.0 /  fspan)
+		if ideal < 2:
 			d1 = 1
 			d2 = d3 = d4 = 1
 		else:
@@ -377,6 +443,24 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		self.set_frontend(1)
 		self.set_frontend(2)
 
+	def _calculate_freqStep(self, decimation, render_downsamp):
+		bufspan = _SA_ADC_SMPS / 2.0 / decimation
+		buf_freq_step = bufspan/_SA_FFT_LENGTH
+
+		return (buf_freq_step * render_downsamp)
+
+	def _calculate_startFreq(self, decimation, demod_freq, render_downsamp, frame_offset):
+		freq_step = self._calculate_freqStep(decimation, render_downsamp)
+
+		bufspan = _SA_ADC_SMPS / 2.0 / decimation
+		buf_start_freq = demod_freq
+		buf_freq_step = bufspan/_SA_FFT_LENGTH
+
+		dev_stop_freq = buf_start_freq + (self.offset+4) * buf_freq_step
+
+		return (dev_stop_freq - _SA_SCREEN_WIDTH * freq_step)
+
+
 	def _calculate_scales(self):
 		# Returns the bits-to-volts numbers for each channel in the current state
 
@@ -407,9 +491,13 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		g1 *= filt_gain * window_gain * self.rbw_ratio
 		g2 *= filt_gain * window_gain * self.rbw_ratio
 
-		log.debug("Scales: %f,%f,%f,%f", g1, g2, self._f1_full, self._f2_full)
+		# Compute the start frequency of the buffer
+		dev_start_freq = self._calculate_startFreq(self._total_decimation,self.demod,self.render_dds,self.offset)
+		dev_freq_step = self._calculate_freqStep(self._total_decimation, self.render_dds)
 
-		return {'g1': g1, 'g2': g2, 'fs': [self._f1_full, self._f2_full]}
+		log.debug("Scales: %f,%f,%f,%f,%f,%f", g1, g2, self._f1_full, self._f2_full,dev_start_freq, dev_freq_step)
+
+		return {'g1': g1, 'g2': g2, 'fs': [self._f1_full, self._f2_full], 'startf': dev_start_freq, 'fstep': dev_freq_step}
 
 
 	def commit(self):

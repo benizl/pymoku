@@ -26,26 +26,20 @@ i.set_buffer_length(4)
 i.framerate = 3
 
 # Set frequency span here
-i.set_fullspan(15e3, 36e3)
+i.set_span(15e6,16e6)
 
 # Push all new configuration to the Moku device
 i.commit()
 
-'''
-regs =  i.dump_remote_regs()
-for idx, r in regs:
-	print "({:d} : {:8X})".format(idx,r)
-'''
-
-# Set up plot
+# Set up basic plot configurations
 line1, = plt.plot([])
 line2, = plt.plot([])
 plt.yscale('log')
 plt.ion()
 plt.show()
 plt.grid(b=True)
-plt.ylim([0, 1000000])
-plt.autoscale(axis='x',tight=True)
+plt.ylim([0, 10000000])
+#plt.autoscale(axis='x',tight=True)
 
 try:
 	# Get an initial frame to set any frame-specific plot parameters
@@ -59,14 +53,19 @@ try:
 	# Start drawing new frames
 	while True:
 		frame = i.get_frame()
-
 		plt.pause(0.001)
+
+		# Set the frame data for each channel plot
 		line1.set_ydata(frame.ch1)
 		line2.set_ydata(frame.ch2)
+		# Frequency axis shouldn't change, but to be sure
 		line1.set_xdata(frame.ch1_fs)
 		line2.set_xdata(frame.ch2_fs)
+		# Ensure the frequency axis is a tight fit
 		ax.relim()
 		ax.autoscale_view()
+
+		# Redraw the lines
 		plt.draw()
 finally:
 	m.close()

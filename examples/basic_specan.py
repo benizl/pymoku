@@ -23,7 +23,7 @@ else:
 # Initial SpecAn setup
 i.set_defaults()
 i.set_buffer_length(4)
-i.framerate = 3
+i.framerate = 2
 
 # Set frequency span here
 i.set_span(15e6,16e6)
@@ -39,7 +39,7 @@ plt.ion()
 plt.show()
 plt.grid(b=True)
 plt.ylim([0, 10000000])
-#plt.autoscale(axis='x',tight=True)
+plt.autoscale(axis='x',tight=True)
 
 try:
 	# Get an initial frame to set any frame-specific plot parameters

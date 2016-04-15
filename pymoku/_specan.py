@@ -45,9 +45,11 @@ _SA_SCREEN_WIDTH	= 1024
 _SA_SCREEN_STEPS	= _SA_SCREEN_WIDTH - 1
 _SA_FPS				= 10
 _SA_FFT_LENGTH		= 8192/2
-
 _SA_FREQ_SCALE		= 2**32 / _SA_ADC_SMPS
 
+'''
+	FILTER GAINS AND CORRECTION FACTORS
+'''
 _SA_WINDOW_WIDTH = {
 	SA_WIN_NONE : 0.89,
 	SA_WIN_BH : 1.90,
@@ -117,14 +119,17 @@ _SA_ADC_FREQ_RESP_20 = [ 1.0000,
     0.7595, 0.7526, 0.7453, 0.7387, 0.7310, 0.7228, 0.7139, 0.7054, 0.6965, 0.6872, 0.6786, 0.6702, 0.6619, 0.6538, 0.6452, 0.6385,
     0.6320, 0.6270, 0.6211, 0.6158, 0.6107, 0.6061, 0.6016, 0.5972, 0.5929, 0.5895, 0.5863, 0.5832, 0.5814, 0.5794, 0.5780, 0.5765 ]
 
-
-
+'''
+	IDEAL DECIMATIONS TABLE
+	TODO: Use this in _calculate_decimations function so we aren't underutilising the CIC/IIR filters
+'''
 '''
 _DECIMATIONS_TABLE = sorted([ (d1 * (d2+1) * (d3+1) * (d4+1), d1, d2+1, d3+1, d4+1)
 								for d1 in [4]
 								for d2 in range(64)
 								for d3 in range(16)
-								for d4 in range(16)], key=lambda x: (x[0],x[4],x[3]))'''
+								for d4 in range(16)], key=lambda x: (x[0],x[4],x[3]))
+'''
 
 class SpectrumFrame(_frame_instrument.DataFrame):
 	"""
@@ -139,6 +144,9 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 
 	.. autoinstanceattribute:: pymoku._frame_instrument.SpectrumFrame.ch2
 		:annotation: = [CH2_DATA]
+
+	.. autoinstanceattribute:: pymoku._frame_instrument.SpectrumFrame.fs
+		:annotation: = [FREQ]
 
 	.. autoinstanceattribute:: pymoku._frame_instrument.SpectrumFrame.frameid
 		:annotation: = n
@@ -156,34 +164,11 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 		#: Channel 2 data array in units of power.
 		self.ch2 = []
 
-		self.scales = scales
-
-		# TODO: This should associate the frequency span, RBW etc.
-
-		# Assume the same frequency span is associated with both channels
+		#: The frequency range associated with both channels
 		self.fs = []
 
-	'''
-		Post processing functions
-	'''
-	def _calculate_adc_freq_resp(self, f, atten):
-		frac_idx = f/_SA_ADC_SMPS/2.0
-
-		floatIndex = (len(_SA_ADC_FREQ_RESP_0) - 1) * min(max(frac_idx,0.0),1.0)
-
-		r = _SA_ADC_FREQ_RESP_20 if atten else _SA_ADC_FREQ_RESP_0
-
-		# Return linear interpolation of table values
-		correction = r[int(math.floor(floatIndex))] + (floatIndex - math.floor(floatIndex))*(r[int(math.ceil(floatIndex))] - r[int(math.floor(floatIndex))])
-		print "Correction ADC: f - %f, scale - %f" % (f, correction)
-		return correction
-
-	def _calculate_cic_freq_resp(self, f, dec, order):
-		freq = f/_SA_ADC_SMPS
-		correction = 1.0 if (freq == 0.0) else pow(math.fabs(math.sin(math.pi*freq*dec)/(math.sin(math.pi*freq)*dec)),order)
-
-		print "Correction CIC: f - %f, scale - %f" % (f, correction)
-		return correction
+		#: Obtain all data scaling factors relevant to current SpecAn configuration
+		self.scales = scales
 
 	def process_complete(self):
 
@@ -191,40 +176,52 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 			log.error("Can't render specan frame, haven't saved calibration data for state %d", self.stateid)
 			return
 
+		# Get scaling/correction factors based on current instrument configuration
 		scales = self.scales[self.stateid]
-		# Do more processing here based on current instrument state (i.e. rbw, decimation gains)
 		scale1 = scales['g1']
 		scale2 = scales['g2']
-		f1, f2 = scales['fs']
-		startf = scales['startf']
-		fstep = scales['fstep']
+		fs = scales['fs']
+		f1, f2 = scales['fspan']
+		fcorrs = scales['fcorrs']
 
 		try:
-			# Calculate the frequencies first
-			self.ch1_fs = [(startf + fstep*i) for i in range(_SA_SCREEN_WIDTH) if ((startf + fstep*i) >= f1) ]
-			self.ch2_fs = self.ch1_fs
-			valid_pts = len(self.ch1_fs)
+			# Find the starting index for the valid frame data
+			# SpecAn generally gives more than we ask for due to integer decimations
+			start_index = bisect_right(fs,f1)
 
+			# Set the frequency range of valid data in the current frame (same for both channels)
+			self.ch1_fs = fs[start_index:-1]
+			self.ch2_fs = fs[start_index:-1]
+
+			##################################
+			# Process Ch1 Data
+			##################################
 			smpls = int(len(self.raw1) / 4)
 			dat = struct.unpack('<' + 'i' * smpls, self.raw1)
 			dat = [ x if x != -0x80000000 else None for x in dat ]
 
 			# SpecAn data is backwards because $(EXPLETIVE), also remove zeros for the sake of common
 			# display on a log axis.
-			self.ch1_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:valid_pts]) ]
-			self.ch1_uncorr = [ x * scale1 if x is not None else None for x in self.ch1_bits]
+			self.ch1_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:_SA_SCREEN_WIDTH]) ]
 
+			# Apply frequency dependent corrections
+			self.ch1 = [ a*c*scale1 if a is not None else None for a,c in zip(self.ch1_bits, fcorrs)]
+			# Trim invalid part of frame
+			self.ch1 = self.ch1[start_index:-1]
+
+
+			##################################
+			# Process Ch2 Data
+			##################################
 			smpls = int(len(self.raw2) / 4)
 			dat = struct.unpack('<' + 'i' * smpls, self.raw2)
 			dat = [ x if x != -0x80000000 else None for x in dat ]
 
-			self.ch2_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:valid_pts]) ]
-			self.ch2_uncorr = [ x * scale2 if x is not None else None for x in self.ch2_bits]
+			self.ch2_bits = [ max(float(x), 1) if x is not None else None for x in reversed(dat[:_SA_SCREEN_WIDTH]) ]
 
-			# Post process for frequency response corrections
-			# TODO: Use actual relay attenuation value
-			self.ch1 = [ self.ch1_uncorr[i] / self._calculate_adc_freq_resp(startf + fstep*i, True) / self._calculate_cic_freq_resp(startf + fstep*i, 4, 10) for i in range(len(self.ch1_uncorr))]
-			self.ch2 = [ self.ch2_uncorr[i] / self._calculate_adc_freq_resp(startf + fstep*i, True) / self._calculate_cic_freq_resp(startf + fstep*i, 4, 10) for i in range(len(self.ch2_uncorr))]
+			self.ch2 = [ a*c*scale2 if a is not None else None for a,c in zip(self.ch2_bits, fcorrs)]
+			self.ch2 = self.ch2[start_index:-1]
+
 		except (IndexError, TypeError, struct.error):
 			# If the data is bollocksed, force a reinitialisation on next packet
 			log.exception("SpecAn packet")
@@ -263,12 +260,11 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 			return
 
 		scales = self.scales[self.stateid]
-		f1, f2 = scales['fs']
+		f1, f2 = scales['fspan']
 
 		fscale_str, fscale_const = self._get_freqScale(f2)
 
 		return '%.1f %s' % (x*fscale_const, fscale_str)
-
 
 class SpecAn(_frame_instrument.FrameBasedInstrument):
 	""" Spectrum Analyser instrument object. This should be instantiated and attached to a :any:`Moku` instance.
@@ -316,11 +312,12 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 			d1 = 1
 			d2 = d3 = d4 = 1
 		else:
-			# Put some optimal algorithm here to compute the decimations
-			'''deci_idx = bisect_right(_DECIMATIONS_TABLE, (ideal,99,99,99,99))
-			deci, d1, d2, d3, d4 = _DECIMATIONS_TABLE[deci_idx - 1]
 
-			print "Table entry: %d, %d, %d, %d, %d, %d" % (deci_idx-1, deci, d1, d2, d3, d4)'''
+			'''
+			# TODO: Use the table of optimal decimations to find d1-d4
+			deci_idx = bisect_right(_DECIMATIONS_TABLE, (ideal,99,99,99,99))
+			deci, d1, d2, d3, d4 = _DECIMATIONS_TABLE[deci_idx - 1]
+			'''
 
 			d1 = 4
 			dec = ideal / d1
@@ -460,8 +457,29 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 		return (dev_stop_freq - _SA_SCREEN_WIDTH * freq_step)
 
+	def _calculate_adc_freq_resp(self, f, atten):
+		frac_idx = f/_SA_ADC_SMPS/2.0
+
+		floatIndex = (len(_SA_ADC_FREQ_RESP_0) - 1) * min(max(frac_idx,0.0),1.0)
+
+		r = _SA_ADC_FREQ_RESP_20 if atten else _SA_ADC_FREQ_RESP_0
+
+		# Return linear interpolation of table values
+		correction = r[int(math.floor(floatIndex))] + (floatIndex - math.floor(floatIndex))*(r[int(math.ceil(floatIndex))] - r[int(math.floor(floatIndex))])
+		return correction
+
+	def _calculate_cic_freq_resp(self, f, dec, order):
+		freq = f/_SA_ADC_SMPS
+
+		correction = 1.0 if (freq == 0.0) else pow(math.fabs(math.sin(math.pi*freq*dec)/(math.sin(math.pi*freq)*dec)),order)
+
+		return correction
 
 	def _calculate_scales(self):
+		"""
+			Returns per-channel correction and scaling parameters required for interpretation of incoming bit frames
+			Parameters are based on current instrument state
+		"""
 		# Returns the bits-to-volts numbers for each channel in the current state
 
 		# TODO: Centralise the calibration parsing, shared with Oscilloscope
@@ -474,6 +492,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 								  "L" if self.relays_ch2 & RELAY_LOWG else "H",
 								  "D" if self.relays_ch2 & RELAY_DC else "A")
 
+		# Compute per-channel constant scaling factors
 		try:
 			g1 = 1 / float(self.calibration[sect1])
 			g2 = 1 / float(self.calibration[sect2])
@@ -491,13 +510,16 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		g1 *= filt_gain * window_gain * self.rbw_ratio
 		g2 *= filt_gain * window_gain * self.rbw_ratio
 
-		# Compute the start frequency of the buffer
+		# Find approximate frequency bin values
 		dev_start_freq = self._calculate_startFreq(self._total_decimation,self.demod,self.render_dds,self.offset)
 		dev_freq_step = self._calculate_freqStep(self._total_decimation, self.render_dds)
+		freqs = [ (dev_start_freq + dev_freq_step*i) for i in range(_SA_SCREEN_WIDTH)]
 
-		log.debug("Scales: %f,%f,%f,%f,%f,%f", g1, g2, self._f1_full, self._f2_full,dev_start_freq, dev_freq_step)
+		# Compute the frequency dependent correction arrays
+		# The CIC correction is only for CIC1 which is decimation=4 only, and 10th order
+		fcorrs = [ (1/self._calculate_adc_freq_resp(f, True)/self._calculate_cic_freq_resp(f, 4, 10)) for f in freqs]
 
-		return {'g1': g1, 'g2': g2, 'fs': [self._f1_full, self._f2_full], 'startf': dev_start_freq, 'fstep': dev_freq_step}
+		return {'g1': g1, 'g2': g2, 'fs': freqs, 'fcorrs': fcorrs, 'fspan': [self._f1_full, self._f2_full]}
 
 
 	def commit(self):

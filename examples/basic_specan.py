@@ -20,13 +20,31 @@ if i is None or i.type != 'specan':
 else:
 	print "Attached to existing Spectrum Analyser"
 
-# Initial SpecAn setup
+#################################
+# BEGIN Instrument Configuration
+# ------------------------------
+# Set these parameters
+#################################
+# Set power scale to dBm
+dbm = True
+
+# Set window type {NONE, BH, FLATTOP, HANNING}
+windowType = i.window_type('NONE')
+
+# Set FFT frequency span (Hz)
+start_freq = 10e6
+stop_freq = 24.32e6
+#################################
+# END Instrument Configuration
+#################################
+
+# Apply parameter settings to instrument class
 i.set_defaults()
 i.set_buffer_length(4)
 i.framerate = 2
-
-# Set frequency span here
-i.set_span(15e6,16e6)
+i.set_dbmscale(dbm)
+i.set_window(windowType)
+i.set_span(start_freq, stop_freq)
 
 # Push all new configuration to the Moku device
 i.commit()
@@ -34,11 +52,13 @@ i.commit()
 # Set up basic plot configurations
 line1, = plt.plot([])
 line2, = plt.plot([])
-plt.yscale('log')
 plt.ion()
 plt.show()
 plt.grid(b=True)
-plt.ylim([0, 10000000])
+if(dbm):
+	plt.ylim([-200, 100])
+else:
+	plt.ylim([-0.5,1])
 plt.autoscale(axis='x',tight=True)
 
 try:
@@ -47,8 +67,10 @@ try:
 
 	# Format the x-axis as a frequency scale 
 	ax = plt.gca()
-	formatter = FuncFormatter(frame.get_freqFmt)
-	ax.xaxis.set_major_formatter(formatter)
+	xformatter = FuncFormatter(frame.get_xaxis_fmt)
+	yformatter = FuncFormatter(frame.get_yaxis_fmt)
+	ax.xaxis.set_major_formatter(xformatter)
+	ax.yaxis.set_major_formatter(yformatter)
 
 	# Start drawing new frames
 	while True:

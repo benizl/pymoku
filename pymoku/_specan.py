@@ -260,8 +260,8 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 
 		return [scale_str,scale_const]
 
-	def get_xaxis_fmt(self,x,pos):
-		# This function returns a format string for the frequency scale
+	def _get_xaxis_fmt(self,x,pos):
+		# This function returns a format string for the x-axis ticks and x-coordinates along the frequency scale
 		# Use this to set an x-axis format during plotting of SpecAn frames
 
 		if self.stateid not in self.scales:
@@ -273,9 +273,15 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 
 		fscale_str, fscale_const = self._get_freqScale(f2)
 
-		return '%.1f %s' % (x*fscale_const, fscale_str)
+		return {'xaxis': '%.1f %s' % (x*fscale_const, fscale_str), 'xcoord': '%.3f %s' % (x*fscale_const, fscale_str)}
 
-	def get_yaxis_fmt(self,y,pos):
+	def get_xaxis_fmt(self, x, pos):
+		return self._get_xaxis_fmt(x,pos)['xaxis']
+
+	def get_xcoord_fmt(self, x):
+		return self._get_xaxis_fmt(x,None)['xcoord']
+
+	def _get_yaxis_fmt(self,y,pos):
 
 		if self.stateid not in self.scales:
 			log.error("Can't get current frequency format, haven't saved calibration data for state %d", self.stateid)
@@ -288,8 +294,19 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 			'linear' : '%.1f %s' % (y,'V'),
 			'log' : '%.1f %s' % (y,'dBm')
 		}
+		ycoord = {
+			'linear' : '%.3f %s' % (y,'V'),
+			'log' : '%.3f %s' % (y,'dBm')
+		}
 
-		return (yfmt['log'] if dbm else yfmt['linear'])
+		return {'yaxis': (yfmt['log'] if dbm else yfmt['linear']), 'ycoord': (ycoord['log'] if dbm else ycoord['linear'])}
+
+	def get_yaxis_fmt(self, y, pos):
+		return self._get_yaxis_fmt(y,pos)['yaxis']
+
+	def get_ycoord_fmt(self, y):
+		return self._get_yaxis_fmt(y,None)['ycoord']
+
 
 class SpecAn(_frame_instrument.FrameBasedInstrument):
 	""" Spectrum Analyser instrument object. This should be instantiated and attached to a :any:`Moku` instance.

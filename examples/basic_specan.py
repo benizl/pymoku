@@ -67,10 +67,10 @@ try:
 
 	# Format the x-axis as a frequency scale 
 	ax = plt.gca()
-	xformatter = FuncFormatter(frame.get_xaxis_fmt)
-	yformatter = FuncFormatter(frame.get_yaxis_fmt)
-	ax.xaxis.set_major_formatter(xformatter)
-	ax.yaxis.set_major_formatter(yformatter)
+	ax.xaxis.set_major_formatter(FuncFormatter(frame.get_xaxis_fmt))
+	ax.yaxis.set_major_formatter(FuncFormatter(frame.get_yaxis_fmt))
+	ax.fmt_xdata = frame.get_xcoord_fmt
+	ax.fmt_ydata = frame.get_ycoord_fmt
 
 	# Start drawing new frames
 	while True:

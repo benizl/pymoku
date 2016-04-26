@@ -70,6 +70,8 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 	    return 2.0 / (_PM_ADC_SMPS * _PM_ADC_SMPS / _PM_UPDATE_RATE / _PM_UPDATE_RATE) * rawValue * scaleFactor
 
 	def _update_datalogger_params(self, ch1, ch2):
+		self.timestep = 1.0/self.get_samplerate()
+
 		# Call this function when any instrument configuration parameters are set
 		self.hdrstr = self.get_hdrstr(ch1,ch2)
 		self.fmtstr = self.get_fmtstr(ch1,ch2)
@@ -83,11 +85,10 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		This interface is most useful for datalogging and similar aquisition where one will not be looking
 		at data frames.
 
-		:type samplerate: float; *0 < samplerate < 500MSPS*
+		:type samplerate: float; *0 < samplerate < 200Hz*
 		:param samplerate: Target samples per second. Will get rounded to the nearest allowable unit.
 		"""
-		self.output_decimation = _PM_UPDATE_RATE / samplerate
-		self.timestep = 1.0 / samplerate
+		self.output_decimation = _PM_UPDATE_RATE / min(max(1,samplerate),200)
 
 	def get_samplerate(self):
 		"""
@@ -124,7 +125,7 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		elif ch == 2:
 			return self.init_freq_ch2
 		else:
-			raise ValeuError("Invalid channel number.")
+			raise ValueError("Invalid channel number.")
 
 	def set_controlgain(self, v):
 		#TODO: Put limits on the range of 'v'
@@ -189,7 +190,7 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		self.set_controlgain(100)
 		self.control_shift = 0
 		self.integrator_shift = 0
-		self.output_shift = 9
+		self.output_shift = math.log(self.output_decimation,2)
 
 		# Configuring the relays for impedance, voltage range etc.
 		self.set_frontend(1, fiftyr=True, atten=True, ac=True)
@@ -209,7 +210,6 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		self.id = 3
 		self.type = "phasemeter"
 		self.logname = "MokuPhaseMeterData"
-		self.set_defaults()
 
 		self.binstr = "<p32,0xAAAAAAAA:p32,0x55555555:s32:s32:s48:s48:s32"
 		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0)),
@@ -230,7 +230,7 @@ _pm_reg_hdl = [
 											lambda rval: (rval >> 16) & 0xF),
 	('output_decimation',	REG_PM_OUTDEC,	lambda f, old: _usgn(f, 17) | (old & ~0x1FFFF),
 											lambda rval: rval & 0x1FFFF),
-	('output_shift',		REG_PM_OUTSHIFT,lambda f, old: (_usgn(f, 4) << 10) | (old & ~0x3C00),
-											lambda rval: (rval >> 10) & 0xF),
+	('output_shift',		REG_PM_OUTSHIFT,lambda f, old: (_usgn(f, 5) << 17) | (old & ~0x3E0000),
+											lambda rval: (rval >> 17) & 0x1F),
 ]
 _instrument._attach_register_handlers(_pm_reg_hdl, PhaseMeter)

@@ -36,7 +36,7 @@ _PM_FREQ_MIN = 2e6
 _PM_FREQ_MAX = 200e6
 _PM_UPDATE_RATE = 1e6
 
-class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument may not be appropriate when we get streaming going.
+class PhaseMeter(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator): #TODO Frame instrument may not be appropriate when we get streaming going.
 	""" PhaseMeter instrument object. This should be instantiated and attached to a :any:`Moku` instance.
 
 	.. automethod:: pymoku.instruments.PhaseMeter.__init__
@@ -109,7 +109,7 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		:param f: Initial locking frequency of the designated channel
 
 		"""
-		if _PM_FREQ_MIN < f < _PM_FREQ_MAX:
+		if _PM_FREQ_MIN <= f <= _PM_FREQ_MAX:
 			if ch == 1:
 				self.init_freq_ch1 = int(f);
 			elif ch == 2:

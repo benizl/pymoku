@@ -9,7 +9,7 @@
 #
 from pymoku import Moku, NoDataException
 from pymoku.instruments import *
-import time, logging, math
+import time, logging, math, numpy
 import matplotlib.pyplot as plt
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
@@ -42,7 +42,7 @@ try:
 	i.set_samplerate(10)
 
 	# Channel 2: 0.5Vp-p Sine Wave, 2Hz.
-	i.synth_sinewave(1, 1.0, 1)
+	i.synth_sinewave(1, 1.5, 2e6)
 
 	# Atomically apply all instrument settings above
 	i.commit()
@@ -57,20 +57,23 @@ try:
 	#		Channel 1 - ON, Channel 2 - ON
 	#		Log file type - Network Stream
 	i.datalogger_stop()
-	i.datalogger_start(start=0, duration=10, use_sd=True, ch1=True, ch2=True, filetype='net')
+	i.datalogger_start(start=0, duration=100, use_sd=True, ch1=True, ch2=True, filetype='net')
 
 	# Set up basic plot configurations
 	data1 = [None] * 1024
 	data2 = [None] * 1024
+	xdata1 = numpy.linspace(-1*(i.get_timestep()*1023), 0, 1024)
+	xdata2 = numpy.linspace(-1*(i.get_timestep()*1023), 0, 1024)
 
 	line1, = plt.plot(data1)
 	line2, = plt.plot(data2)
-	plt.xlim([0,1024])
 
 	plt.ion()
 	plt.show()
 	plt.grid(b=True)
 	ax = plt.gca()
+	plt.xlim([-1*(i.get_timestep()*1023), 0])
+	
 	while True:
 		# Get samples
 		try:
@@ -86,12 +89,12 @@ try:
 			datalen = len(samp)
 			# Process the amplitudes
 			data1 = data1[(datalen-1):-1]
+			#xdata1 = xdata1[(len(xdata1)-1):-1]
 			for s in samp:
 				data1 = data1 + [math.sqrt(s[0]**2 + s[1]**2)]
-				#print data1
 
 			line1.set_ydata(data1)
-			line1.set_xdata(range(1024))
+			line1.set_xdata(xdata1)
 
 		ax.relim()
 		ax.autoscale_view()

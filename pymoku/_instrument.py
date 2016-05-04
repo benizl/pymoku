@@ -131,7 +131,7 @@ def _attach_register_handlers(handler_list, cls):
 
 def _usgn(i, width):
 	""" Return i as an unsigned of given width, raising exceptions for out of bounds """
-	if 0 <= i <= 2**width:
+	if 0 <= i < 2**width:
 		return int(i)
 
 	raise ValueOutOfRangeException("%d doesn't fit in %d unsigned bits" % (i, width))

@@ -88,13 +88,13 @@ class DataFrame(object):
 		self.flags = None
 
 	def add_packet(self, packet):
-		hdr_len = 13
+		hdr_len = 15
 		if len(packet) <= hdr_len:
 			# Should be a higher priority but actually seems unexpectedly common. Revisit.
 			log.debug("Corrupt frame recevied, len %d", len(packet))
 			return
 
-		data = struct.unpack('<BHBBBBBIB', packet[:hdr_len])
+		data = struct.unpack('<BHBBBBBIBH', packet[:hdr_len])
 		frameid = data[1]
 		instrid = data[2]
 		chan = (data[3] >> 4) & 0x0F
@@ -103,6 +103,7 @@ class DataFrame(object):
 		self.trigstate = data[5]
 		self.flags = data[6]
 		self.waveformid = data[7]
+		self.source_serial = data[8]
 
 		if self.frameid != frameid:
 			self.frameid = frameid

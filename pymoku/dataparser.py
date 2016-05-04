@@ -363,7 +363,7 @@ class LIDataParser(object):
 			self.procfmt.append(LIDataParser._parse_procstr(procstr[ch], calcoeffs[ch]))
 
 		self.fmtdict = {
-			'T' : datetime.datetime.fromtimestamp(starttime).strftime('%c'), # TODO: Nicely formatted datetime string
+			'T' : time.strftime('%c %Z', time.localtime(starttime)), # Standard repr plus explicit timezone
 			't' : 0,
 			'd' : deltat,
 			'n' : 0,

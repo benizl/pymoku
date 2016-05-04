@@ -28,21 +28,58 @@ else:
 	print "Attached to existing Phasemeter"
 
 try:
+	#################################
+	# BEGIN Instrument Configuration
+	# ------------------------------
+	# Set these parameters
+	#################################
+	'''
+		Which channels are ON?
+	'''
+	ch1 = True
+	ch2 = True
+
+	'''
+		Initial channel scan frequencies
+	'''
+	ch1_freq = 10e6
+	ch2_freq = 10e6
+
+	'''
+		Ouput sinewaves
+	'''
+	ch1_out_enable = True
+	ch1_out_freq = 10e6
+	ch1_out_amp = 1
+
+	ch2_out_enable = True
+	ch2_out_freq = 10e6
+	ch2_out_amp = 1
+
+	'''
+		Log duration (sec)
+	'''
+	duration = 100
+	#################################
+	# END Instrument Configuration
+	#################################
+
 	# It's recommended to set default values for the instrument, otherwise the user
 	# has to go ahead and explicitly set up many values themselves.
 	i.set_defaults()
 
 	# Set the initial phase-lock loop frequency for both channels
-	# Channel 1: 6 MHz
-	# Channel 2: 6 MHz
-	i.set_initfreq(1, 2e6)
-	i.set_initfreq(2, 6e6)
+	i.set_initfreq(1, ch1_freq)
+	i.set_initfreq(2, ch2_freq)
 
-	# The sample rate must be set <=100Hz to avoid data loss so we set it to 100Hz
+	# The sample rate must be set <=100Hz to avoid data loss so we set it to 10Hz
 	i.set_samplerate(10)
 
-	# Channel 2: 0.5Vp-p Sine Wave, 2Hz.
-	i.synth_sinewave(1, 1.5, 2e6)
+	# Set up signal generator for enabled channels
+	if(ch1_out_enable):
+		i.synth_sinewave(1, ch1_out_amp, ch1_out_freq)
+	if(ch2_out_enable):
+		i.synth_sinewave(2, ch2_out_amp, ch2_out_freq)
 
 	# Atomically apply all instrument settings above
 	i.commit()
@@ -57,22 +94,26 @@ try:
 	#		Channel 1 - ON, Channel 2 - ON
 	#		Log file type - Network Stream
 	i.datalogger_stop()
-	i.datalogger_start(start=0, duration=100, use_sd=True, ch1=True, ch2=True, filetype='net')
+	i.datalogger_start(start=0, duration=duration, use_sd=True, ch1=ch1, ch2=ch2, filetype='net')
 
 	# Set up basic plot configurations
-	data1 = [None] * 1024
-	data2 = [None] * 1024
-	xdata1 = numpy.linspace(-1*(i.get_timestep()*1023), 0, 1024)
-	xdata2 = numpy.linspace(-1*(i.get_timestep()*1023), 0, 1024)
+	if ch1:
+		ydata1 = [None] * 1024
+		line1, = plt.plot(ydata1)
+	if ch2:
+		ydata2 = [None] * 1024
+		line2, = plt.plot(ydata2)
 
-	line1, = plt.plot(data1)
-	line2, = plt.plot(data2)
+	xdata = numpy.linspace(-1*(i.get_timestep()*1023), 0, 1024)
 
 	plt.ion()
 	plt.show()
 	plt.grid(b=True)
 	ax = plt.gca()
+	ax.get_yaxis().get_major_formatter().set_useOffset(False)
 	plt.xlim([-1*(i.get_timestep()*1023), 0])
+	plt.ylabel('Amplitude (V)')
+	plt.xlabel('Time (s)')
 	
 	while True:
 		# Get samples
@@ -81,20 +122,38 @@ try:
 		except NoDataException as e:
 			print "Data stream complete"
 			break
-
 		print "Ch: %d, Idx: %d, #Samples: %s" % (ch, idx, len(samp))
 
-		# Append new samples on to the current ones
-		if ch==1:
+		# Process the retrieved samples
+		if ch1 & (ch==1):
 			datalen = len(samp)
-			# Process the amplitudes
-			data1 = data1[(datalen-1):-1]
-			#xdata1 = xdata1[(len(xdata1)-1):-1]
+			ydata1 = ydata1[(datalen-1):-1]
 			for s in samp:
-				data1 = data1 + [math.sqrt(s[0]**2 + s[1]**2)]
+				# Process individual sample 's' here. Output format [I,Q,f,phase]
+				#
+				#
 
-			line1.set_ydata(data1)
-			line1.set_xdata(xdata1)
+				# Convert I,Q to amplitude and append to line graph
+				ydata1 = ydata1 + [math.sqrt(s[0]**2 + s[1]**2)]
+
+		elif ch2 & (ch==2):
+			datalen = len(samp)
+			ydata2 = ydata2[(datalen-1):-1]
+			for s in samp:
+				# Process individual sample 's' here. Output format [I,Q,f,phase]
+				#
+				#
+
+				# Convert I,Q to amplitude and append to line graph
+				ydata2 = ydata2 + [math.sqrt(s[0]**2 + s[1]**2)]
+
+		# Must set lines for each draw loop
+		if ch1:
+			line1.set_ydata(ydata1)
+			line1.set_xdata(xdata)
+		if ch2:
+			line2.set_ydata(ydata2)
+			line2.set_xdata(xdata)
 
 		ax.relim()
 		ax.autoscale_view()

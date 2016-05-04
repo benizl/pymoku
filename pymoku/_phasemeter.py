@@ -30,8 +30,8 @@ REG_PM_OUTSHIFT = 67
 REG_PM_SG_EN = 96
 REG_PM_SG_FREQ1_L = 97
 REG_PM_SG_FREQ1_H = 98
-REG_PM_SG_FREQ2_L = 101
-REG_PM_SG_FREQ2_H = 102
+REG_PM_SG_FREQ2_L = 99
+REG_PM_SG_FREQ2_H = 100
 REG_PM_SG_AMP = 105
 
 # Phasemeter specific instrument constants
@@ -66,22 +66,22 @@ class PhaseMeter_SignalGenerator(MokuInstrument):
 			self.pm_out2_amplitude = amplitude
 			self.pm_out2_frequency = frequency
 
-_siggen_reg_hdl = [
+_pm_siggen_reg_hdl = [
 	('pm_out1_enable',		REG_PM_SG_EN,	lambda s, old: (old & ~1) | int(s) if int(s) in [0, 1] else None,
-										lambda rval: rval & 1),
+											lambda rval: rval & 1),
 	('pm_out2_enable',		REG_PM_SG_EN,	lambda s, old: (old & ~2) | int(s) << 1 if int(s) in [0, 1] else None,
-										lambda rval: (rval & 2) >> 1),
+											lambda rval: (rval & 2) >> 1),
 	('pm_out1_frequency',	(REG_PM_SG_FREQ1_H, REG_PM_SG_FREQ1_L),
 											lambda f, old: ((old[0] & 0xFFFF0000) | _usgn(f * _PM_SG_FREQSCALE, 48) >> 32, _usgn(f * _PM_SG_FREQSCALE, 48) & 0xFFFFFFFF),
 											lambda rval: (rval[0] << 32 | rval[1])/_PM_SG_FREQSCALE),
 	('pm_out2_frequency',	(REG_PM_SG_FREQ2_H, REG_PM_SG_FREQ2_L),
 											lambda f, old: ((old[0] & 0xFFFF0000) | _usgn(f * _PM_SG_FREQSCALE, 48) >> 32, _usgn(f * _PM_SG_FREQSCALE, 48) & 0xFFFFFFFF),
 											lambda rval: (rval[0] << 32 | rval[1])/_PM_SG_FREQSCALE),
-	('pm_out1_amplitude',	REG_PM_SG_AMP,		lambda a, old: (old & 0xFFFF0000) | _usgn(_PM_SG_AMPSCALE * a, 16), lambda rval: (rval/_PM_SG_AMPSCALE) & 0x0000FFFF),
-	('pm_out2_amplitude',	REG_PM_SG_AMP,		lambda a, old: (old & 0x0000FFFF) | _usgn(_PM_SG_AMPSCALE * a, 16) << 16, lambda rval: ((rval/_PM_SG_AMPSCALE) & 0xFFFF0000) >> 16)
+	('pm_out1_amplitude',	REG_PM_SG_AMP, lambda a, old: (old & 0xFFFF0000) | _usgn(_PM_SG_AMPSCALE * a, 16), lambda rval: (rval/_PM_SG_AMPSCALE) & 0x0000FFFF),
+	('pm_out2_amplitude',	REG_PM_SG_AMP, lambda a, old: (old & 0x0000FFFF) | _usgn(_PM_SG_AMPSCALE * a, 16) << 16, lambda rval: ((rval/_PM_SG_AMPSCALE) & 0xFFFF0000) >> 16)
 ]
 # Define all PM-registers we care about
-_instrument._attach_register_handlers(_siggen_reg_hdl, PhaseMeter_SignalGenerator)
+_instrument._attach_register_handlers(_pm_siggen_reg_hdl, PhaseMeter_SignalGenerator)
 
 
 class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenerator): #TODO Frame instrument may not be appropriate when we get streaming going.

@@ -227,7 +227,7 @@ class SignalGenerator(MokuInstrument):
 		:param ch: Channel to modulate
 
 		:type type: SG_MOD_NONE, SG_MOD_AMPL, SG_MOD_FREQ, SG_MOD_PHASE
-		:param type:  Modulation type. Respectively Amplitude, Frequency and Phase modulation.
+		:param type:  Modulation type. Respectively Off, Amplitude, Frequency and Phase modulation.
 
 		:type source: SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC
 		:param source: Modulation source. Respectively Internal Sinewave, Associated ADC Channel or Opposite DAC Channel.

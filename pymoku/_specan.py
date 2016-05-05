@@ -347,6 +347,8 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 		self.set_dbmscale(True)
 
+		self._register_accessors(_sa_reg_handlers)
+
 	def _calculate_decimations(self, f1, f2):
 		# Computes the decimations given the input span
 		# Doesn't guarantee a total decimation of the ideal value, even if such an integer sequence exists
@@ -487,7 +489,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 			win = SA_WIN_NONE
 		else:
 			win = SA_WIN_NONE
-			log.error('Invalid window type %s. Choose one of {{FLATTOP, HANNING, BH, NONE}}',name)
+			log.error('Invalid window type %s. Choose one of {{FLATTOP, HANNING, BH, NONE}}', name)
 		return win
 
 	def set_dbmscale(self,dbm=True):
@@ -616,49 +618,48 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 	attach_moku.__doc__ = _instrument.MokuInstrument.attach_moku.__doc__
 
-_sa_reg_hdl = [
-	('demod',			REG_SA_DEMOD,		lambda r, old: _usgn(r * _SA_FREQ_SCALE, 32), lambda rval: rval / _SA_FREQ_SCALE),
-	('dec_enable',		REG_SA_DECCTL,		lambda r, old: (old & ~1) | int(r) if int(r) in [0, 1] else None,
+_sa_reg_handlers = {
+	'demod':			(REG_SA_DEMOD,		lambda r, old: _usgn(r * _SA_FREQ_SCALE, 32), lambda rval: rval / _SA_FREQ_SCALE),
+	'dec_enable':		(REG_SA_DECCTL,		lambda r, old: (old & ~1) | int(r) if int(r) in [0, 1] else None,
 											lambda rval: bool(rval & 1)),
-	('dec_cic2',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7E) | _usgn(r - 1, 6) << 1,
+	'dec_cic2':			(REG_SA_DECCTL,		lambda r, old: (old & ~0x7E) | _usgn(r - 1, 6) << 1,
 											lambda rval: ((rval & 0x7E) >> 1) + 1),
-	('bs_cic2',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780) | _usgn(r, 4) << 7,
+	'bs_cic2':			(REG_SA_DECCTL,		lambda r, old: (old & ~0x780) | _usgn(r, 4) << 7,
 											lambda rval: (rval & 0x780) >> 7),
-	('dec_cic3',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7800) | _usgn(r - 1, 4) << 11,
+	'dec_cic3':			(REG_SA_DECCTL,		lambda r, old: (old & ~0x7800) | _usgn(r - 1, 4) << 11,
 											lambda rval: ((rval & 0x7800) >> 11) + 1),
-	('bs_cic3',			REG_SA_DECCTL,		lambda r, old: (old & ~0x78000) | _usgn(r, 4) << 15,
+	'bs_cic3':			(REG_SA_DECCTL,		lambda r, old: (old & ~0x78000) | _usgn(r, 4) << 15,
 											lambda rval: (rval & 0x78000) >> 15),
-	('dec_iir',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780000) | _usgn(r - 1, 4) << 19,
+	'dec_iir':			(REG_SA_DECCTL,		lambda r, old: (old & ~0x780000) | _usgn(r - 1, 4) << 19,
 											lambda rval: ((rval & 0x780000) >> 19) + 1),
-	('rbw_ratio',		REG_SA_RBW,			lambda r, old: (old & ~0xFFFFFF) | _usgn(r * 2.0**10.0, 24),
+	'rbw_ratio':		(REG_SA_RBW,		lambda r, old: (old & ~0xFFFFFF) | _usgn(r * 2.0**10.0, 24),
 											lambda rval: (rval & 0xFFFFFF)/2.0**10.0 ),
-	('window',			REG_SA_RBW,			lambda r, old: (old & ~0x3000000) | r << 24 if r in [SA_WIN_NONE, SA_WIN_BH, SA_WIN_HANNING, SA_WIN_FLATTOP] else SA_WIN_NONE,
+	'window':			(REG_SA_RBW,		lambda r, old: (old & ~0x3000000) | r << 24 if r in [SA_WIN_NONE, SA_WIN_BH, SA_WIN_HANNING, SA_WIN_FLATTOP] else SA_WIN_NONE,
 											lambda rval: (rval & 0x3000000) >> 24),
-	('ref_level',		REG_SA_REFLVL,		lambda r, old: (old & ~0x0F) | _usgn(r, 4),
+	'ref_level':		(REG_SA_REFLVL,		lambda r, old: (old & ~0x0F) | _usgn(r, 4),
 											lambda rval: rval & 0x0F),
-	('gain_sos0',		REG_SA_SOS0_GAIN,	lambda r, old: _sgn(r, 18),
+	'gain_sos0':		(REG_SA_SOS0_GAIN,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('a1_sos0',			REG_SA_SOS0_A1,		lambda r, old: _sgn(r, 18),
+	'a1_sos0':			(REG_SA_SOS0_A1,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('a2_sos0',			REG_SA_SOS0_A2,		lambda r, old: _sgn(r, 18),
+	'a2_sos0':			(REG_SA_SOS0_A2,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('b1_sos0',			REG_SA_SOS0_B1,		lambda r, old: _sgn(r, 18),
+	'b1_sos0':			(REG_SA_SOS0_B1,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('gain_sos1',		REG_SA_SOS1_GAIN,	lambda r, old: _sgn(r, 18),
+	'gain_sos1':		(REG_SA_SOS1_GAIN,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('a1_sos1',			REG_SA_SOS1_A1,		lambda r, old: _sgn(r, 18),
+	'a1_sos1':			(REG_SA_SOS1_A1,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('a2_sos1',			REG_SA_SOS1_A2,		lambda r, old: _sgn(r, 18),
+	'a2_sos1':			(REG_SA_SOS1_A2,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('b1_sos1',			REG_SA_SOS1_B1,		lambda r, old: _sgn(r, 18),
+	'b1_sos1':			(REG_SA_SOS1_B1,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('gain_sos2',		REG_SA_SOS2_GAIN,	lambda r, old: _sgn(r, 18),
+	'gain_sos2':		(REG_SA_SOS2_GAIN,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('a1_sos2',			REG_SA_SOS2_A1,		lambda r, old: _sgn(r, 18),
+	'a1_sos2':			(REG_SA_SOS2_A1,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('a2_sos2',			REG_SA_SOS2_A2,		lambda r, old: _sgn(r, 18),
+	'a2_sos2':			(REG_SA_SOS2_A2,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-	('b1_sos2',			REG_SA_SOS2_B1,		lambda r, old: _sgn(r, 18),
+	'b1_sos2':			(REG_SA_SOS2_B1,	lambda r, old: _sgn(r, 18),
 											lambda rval: rval),
-]
-_instrument._attach_register_handlers(_sa_reg_hdl, SpecAn)
+}

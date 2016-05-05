@@ -121,26 +121,6 @@ class VoltsFrame(_frame_instrument.DataFrame):
 		return True
 
 class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator):
-
-	def get_hdrstr(self, ch1, ch2):
-		chs = [ch1, ch2]
-
-		hdr = "Moku:Lab Data Logger\r\nStart,{{T}}\r\nSample Rate {} Hz\r\nTime".format(self.get_samplerate())
-		for i,c in enumerate(chs):
-			if c:
-				hdr += ", Channel {i}".format(i=i+1)
-		hdr += "\r\n"
-		return hdr
-
-	def get_fmtstr(self, ch1, ch2):
-		chs = [ch1, ch2]
-		fmtstr = "{t}"
-		for i,c in enumerate(chs):
-			if c:
-				fmtstr += ",{{ch{i}:.8e}}".format(i=i+1)
-		fmtstr += "\r\n"
-		return fmtstr
-
 	""" Oscilloscope instrument object. This should be instantiated and attached to a :any:`Moku` instance.
 
 	.. automethod:: pymoku.instruments.Oscilloscope.__init__
@@ -164,6 +144,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		Name of this instrument.
 
 	"""
+
 	def __init__(self):
 		"""Create a new Oscilloscope instrument, ready to be attached to a Moku."""
 		self.scales = {}
@@ -179,6 +160,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.timestep = 1
 
 		self.decimation_rate = 1
+
+		self._register_accessors(_osc_reg_handlers)
 
 	def _optimal_decimation(self, t1, t2):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalADCDecimation
@@ -240,6 +223,25 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			self.procstr[1] = "*C"
 		self.fmtstr = self.get_fmtstr(ch1,ch2)
 		self.hdrstr = self.get_hdrstr(ch1,ch2)
+
+	def get_hdrstr(self, ch1, ch2):
+		chs = [ch1, ch2]
+
+		hdr = "Moku:Lab Data Logger\r\nStart,{{T}}\r\nSample Rate {} Hz\r\nTime".format(self.get_samplerate())
+		for i,c in enumerate(chs):
+			if c:
+				hdr += ", Channel {i}".format(i=i+1)
+		hdr += "\r\n"
+		return hdr
+
+	def get_fmtstr(self, ch1, ch2):
+		chs = [ch1, ch2]
+		fmtstr = "{t}"
+		for i,c in enumerate(chs):
+			if c:
+				fmtstr += ",{{ch{i}:.8e}}".format(i=i+1)
+		fmtstr += "\r\n"
+		return fmtstr
 
 	def datalogger_start(self, start, duration, use_sd, ch1, ch2, filetype):
 		self._update_datalogger_params(ch1, ch2)
@@ -392,28 +394,27 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 	attach_moku.__doc__ = _instrument.MokuInstrument.attach_moku.__doc__
 
-_osc_reg_hdl = [
-	('source_ch1',		REG_OSC_OUTSEL,		lambda s, old: (old & ~1) | s if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,
+_osc_reg_handlers = {
+	'source_ch1':		(REG_OSC_OUTSEL,	lambda s, old: (old & ~1) | s if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,
 											lambda rval: rval & 1),
-	('source_ch2',		REG_OSC_OUTSEL,		lambda s, old: (old & ~2) | s << 1 if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,
+	'source_ch2':		(REG_OSC_OUTSEL,	lambda s, old: (old & ~2) | s << 1 if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,
 											lambda rval: (rval & 2) >> 1),
-	('trig_mode',		REG_OSC_TRIGMODE,	lambda s, old: (old & ~3) | s if s in [OSC_TRIG_AUTO, OSC_TRIG_NORMAL, OSC_TRIG_SINGLE] else None,
+	'trig_mode':		(REG_OSC_TRIGMODE,	lambda s, old: (old & ~3) | s if s in [OSC_TRIG_AUTO, OSC_TRIG_NORMAL, OSC_TRIG_SINGLE] else None,
 											lambda rval: rval & 3),
-	('trig_edge',		REG_OSC_TRIGCTL,	lambda s, old: (old & ~3) | s if s in [OSC_EDGE_RISING, OSC_EDGE_FALLING, OSC_EDGE_BOTH] else None,
+	'trig_edge':		(REG_OSC_TRIGCTL,	lambda s, old: (old & ~3) | s if s in [OSC_EDGE_RISING, OSC_EDGE_FALLING, OSC_EDGE_BOTH] else None,
 											lambda rval: rval & 3),
-	('trig_ch',			REG_OSC_TRIGCTL,	lambda s, old: (old & ~0x7F0) | s << 4 if s in
+	'trig_ch':			(REG_OSC_TRIGCTL,	lambda s, old: (old & ~0x7F0) | s << 4 if s in
 												[OSC_TRIG_CH1, OSC_TRIG_CH2, OSC_TRIG_DA1, OSC_TRIG_DA2] else None,
 											lambda rval: (rval & 0x7F0) >> 4),
-	('hf_reject',		REG_OSC_TRIGCTL,	lambda s, old: (old & ~0x1000) | s << 12 if int(s) in [0, 1] else None,
+	'hf_reject':		(REG_OSC_TRIGCTL,	lambda s, old: (old & ~0x1000) | s << 12 if int(s) in [0, 1] else None,
 											lambda rval: (rval & 0x1000) >> 12),
-	('hysteresis',		REG_OSC_TRIGCTL,	lambda s, old: (old & ~0xFFFF0000) | s << 16 if 0 <= s < 2**16 else None,
+	'hysteresis':		(REG_OSC_TRIGCTL,	lambda s, old: (old & ~0xFFFF0000) | s << 16 if 0 <= s < 2**16 else None,
 											lambda rval: (rval & 0xFFFF0000) >> 16),
-	('trigger_level',	REG_OSC_TRIGLVL,	lambda s, old: _sgn(s, 32),
+	'trigger_level':	(REG_OSC_TRIGLVL,	lambda s, old: _sgn(s, 32),
 											lambda rval: rval),
-	('loopback_mode',	REG_OSC_ACTL,		lambda m, old: (old & ~0x01) | m if m in [_OSC_LB_CLIP, _OSC_LB_ROUND] else None,
+	'loopback_mode':	(REG_OSC_ACTL,		lambda m, old: (old & ~0x01) | m if m in [_OSC_LB_CLIP, _OSC_LB_ROUND] else None,
 											lambda rval: rval & 0x01),
-	('ain_mode',		REG_OSC_ACTL,		lambda m, old: (old & ~0x30000) | (m << 16) if m in [_OSC_AIN_DDS, _OSC_AIN_DECI] else None,
+	'ain_mode':			(REG_OSC_ACTL,		lambda m, old: (old & ~0x30000) | (m << 16) if m in [_OSC_AIN_DDS, _OSC_AIN_DECI] else None,
 											lambda rval: (rval & 0x30000) >> 16),
-	('decimation_rate',	REG_OSC_DECIMATION,	lambda r, old: _usgn(r, 32), lambda rval: rval),
-]
-_instrument._attach_register_handlers(_osc_reg_hdl, Oscilloscope)
+	'decimation_rate':	(REG_OSC_DECIMATION,lambda r, old: _usgn(r, 32), lambda rval: rval),
+}

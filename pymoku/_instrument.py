@@ -40,8 +40,8 @@ COMMIT		= 0x80000000
 INSTR_RST	= 0x00000001
 
 # REG_OUTLEN Constants
-ROLL		= (1 << 29)
-SWEEP		= (1 << 30)
+ROLL		= 1
+SWEEP		= 2
 FULL_FRAME	= 0
 
 # REG_FILT Constants
@@ -87,6 +87,156 @@ def _upsgn(i, width):
 		return i
 
 	return i - 2**width
+
+
+def to_reg_signed(_offset, _len, allow_set=None, allow_range=None, xform=lambda x: x):
+	""" Returns a callable that will pack a new signed data value in to a register.
+	Designed as shorthand for common use in instrument register accessor lists. Supports
+	single and compound registers (i.e. data values that span more than one register).
+
+	:param _offset: Offset of data field in the register (set)
+	:param _len: Length of data field in the register (set)
+	:param allow_set: Set containing all valid values of the data field.
+	:param allow_range: a two-tuple specifying the bounds of the data value.
+	:param xform: a callable that translates the user value written to the attribute to the register value"""
+	# TODO: This signed and the below unsigned share all but one line of code, should consolidate
+	def __ss(val, old):
+		val = xform(val)
+		mask = ((1 << _len) - 1) << _offset
+
+		if allow_set and allow_range:
+			raise MokuException("Can't check against both ranges and sets")
+
+		if allow_set and val not in allow_set:
+			return None
+		elif allow_range and (val < allow_range[0] or val > allow_range[1]):
+			return None
+
+		v = _sgn(val, _len) << _offset
+
+		try:
+			return (old & ~mask) | v
+		except TypeError:
+			r = []
+			for o in reversed(old):
+				r.insert(0, (o & ~mask) | v & 0xFFFFFFFF)
+
+				v = v >> 32
+				mask = mask >> 32
+
+			return tuple(r)
+
+
+	return __ss
+
+
+def to_reg_unsigned(_offset, _len, allow_set=None, allow_range=None, xform=lambda x: x):
+	""" Returns a callable that will pack a new unsigned data value or bitfield in to a register.
+	Designed as shorthand for common use in instrument register accessor lists. Supports
+	single and compound registers (i.e. data values that span more than one register).
+
+	:param _offset: Offset of data field in the register (set)
+	:param _len: Length of data field in the register (set)
+	:param allow_set: Set containing all valid values of the data field.
+	:param allow_range: a two-tuple specifying the bounds of the data value.
+	:param xform: a callable that translates the user value written to the attribute to the register value"""
+
+	def __us(val, old):
+		val = xform(val)
+		mask = ((1 << _len) - 1) << _offset
+
+		if allow_set and allow_range:
+			raise MokuException("Can't check against both ranges and sets")
+
+		if allow_set and val not in allow_set:
+			return None
+		elif allow_range and (val < allow_range[0] or val > allow_range[1]):
+			return None
+
+		v = _usgn(val, _len) << _offset
+
+		try:
+			return (old & ~mask) | v
+		except TypeError:
+			r = []
+			for o in reversed(old):
+				r.insert(0, (o & ~mask) | v & 0xFFFFFFFF)
+
+				v = v >> 32
+				mask = mask >> 32
+
+			return tuple(r)
+
+	return __us
+
+
+def to_reg_bool(_offset):
+	""" Returns a callable that will pack a new boolean data value in to a single bit of a register.
+	Designed as shorthand for common use in instrument register accessor lists. Equivalent to
+	:any:`to_reg_unsigned(_offset, 1, allow_set=[0, 1], xform=int)`
+
+	:param _offset: Offset of bit in the register (set)"""
+	return to_reg_unsigned(_offset, 1, allow_set=[0,1], xform=int)
+
+
+def from_reg_signed(_offset, _len, xform=lambda x: x):
+	""" Returns a callable that will unpack a signed data value from a register bitfield.
+	Designed as shorthand for common use in instrument register accessor lists. Supports
+	single and compound registers (i.e. data values that span more than one register).
+
+	:param _offset: Offset of data field in the register (set)
+	:param _len: Length of data field in the register (set)
+	:param xform: a callable that translates the register value to the user attribute's natural units"""
+	# TODO: As above, this and the unsigned version share all but one line of code, should consolidate.
+	mask = ((1 << _len) - 1) << _offset
+
+	def __sg(reg):
+		try:
+			return xform(_upsgn((reg & mask) >> _offset, _len))
+		except TypeError:
+			v = 0
+			for r in reg:
+				v |= r
+				v <<= 32
+
+			return xform(_upsgn((v & mask) >> _offset, _len))
+
+	return __sg
+
+
+def from_reg_unsigned(_offset, _len, xform=lambda x: x):
+	""" Returns a callable that will unpack an unsigned data value from a register bitfield.
+	Designed as shorthand for common use in instrument register accessor lists. Supports
+	single and compound registers (i.e. data values that span more than one register).
+
+	:param _offset: Offset of data field in the register (set)
+	:param _len: Length of data field in the register (set)
+	:param xform: a callable that translates the register value to the user attribute's natural units"""
+	mask = ((1 << _len) - 1) << _offset
+
+	def __ug(reg):
+		try:
+			return xform((reg & mask) >> _offset)
+		except TypeError:
+			v = 0
+			for r in reg:
+				v <<= 32
+				v |= r
+
+			return xform((v & mask) >> _offset)
+
+	return __ug
+
+
+def from_reg_bool(_offset):
+	""" Returns a callable that will unpack a boolean value from a register bit.
+	Designed as shorthand for common use in instrument register accessor lists.
+	Equivalent to :any:`from_reg_unsigned(_offset, 1, xform=bool)`.
+
+	:param _offset: Offset of data field in the register (set)"""
+	return from_reg_unsigned(_offset, 1, xform=bool)
+
+
 
 class MokuInstrument(object):
 	"""Superclass for all Instruments that may be attached to a :any:`Moku` object.
@@ -258,42 +408,47 @@ class MokuInstrument(object):
 
 _instr_reg_handlers = {
 	# Name : Register, set-transform (user to register), get-transform (register to user); either None is W/R-only
-	'instr_id':			(REG_ID1, None, lambda rval: rval & 0xFF),
-	'instr_buildno':	(REG_ID1, None, lambda rval: rval >> 16),
-	'hwver':			(REG_ID2, None, lambda rval: rval >> 24),
-	'hwserial':			(REG_ID2, None, lambda rval: rval & 0xFFF),
-	'keep_last':		(REG_OUTLEN, lambda l, old: (old & ~0x10000000) | (l << 28),
-									lambda rval: (rval & 0x10000000) >> 28),
-	'frame_length':		(REG_OUTLEN, lambda l, old: (old & ~0x3FF) | _usgn(l, 12),
-									lambda rval: rval & 0x3FF),
-	'pause':			(REG_PAUSE,	lambda m, old: (old & ~1) | (1 if m else 0),
-									lambda rval: (rval & 1) != 0),
-	'x_mode':			(REG_OUTLEN, lambda m, old: ((old & ~0x60000000) | m) if m in [ROLL, SWEEP, FULL_FRAME] else None,
-									lambda rval: rval & 0x60000000),
-	'render_mode':		(REG_FILT,	lambda f, old: f if f in [RDR_CUBIC, RDR_MINMAX, RDR_DECI, RDR_DDS ] else None,
-									lambda rval: rval),
-	'framerate':		(REG_FRATE,	lambda f, old: _usgn(f * 256.0 / 477.0, 8),
-									lambda rval: rval / 256.0 * 477.0),
-	# Cubic Downsampling accessors
-	'render_deci':		(REG_SCALE,	lambda x, old: (old & 0xFFFF0000) | _usgn(128 * (x - 1), 16),
-									lambda x: (x & 0xFFFF) / 128.0 + 1),
-	'render_deci_alt':	(REG_SCALE,	lambda x, old: (old & 0x0000FFFF) | _usgn(128 * (x - 1), 16) << 16,
-									lambda x: (int(x) >> 16) / 128.0 + 1),
-	# Direct Downsampling accessors.
-	'render_dds':		(REG_SCALE,	lambda x, old: (old & 0xFFFF0000) | _usgn(x - 1, 16),
-									lambda x: (x & 0xFFFF) + 1),
-	'render_dds_alt':	(REG_SCALE,	lambda x, old: (old & 0x0000FFFF) | _usgn(x - 1, 16) << 16,
-									lambda x: (int(x) >> 16) + 1),
+	'instr_id':			(REG_ID1, 		None, 						from_reg_unsigned(0, 8)),
+	'instr_buildno':	(REG_ID1, 		None,						from_reg_unsigned(8, 8)),
+	'hwver':			(REG_ID2, 		None,						from_reg_unsigned(24, 0)),
+	'hwserial':			(REG_ID2, 		None,						from_reg_unsigned(0, 24)),
+	'pause':			(REG_PAUSE,		to_reg_bool(0),				from_reg_bool(0)),
+	'frame_length':		(REG_OUTLEN,	to_reg_unsigned(0, 12),		from_reg_unsigned(0, 12)),
+	'keep_last':		(REG_OUTLEN,	to_reg_bool(28),			from_reg_bool(28)),
 
-	'offset':			(REG_OFFSET, lambda x, old: _sgn(x, 32), lambda x: _upsgn(x, 32)),
-	'offset_alt':		(REG_OFFSETA,lambda x, old: _sgn(x, 32), lambda x: _upsgn(x, 32)),
-	# TODO Stream Control
-	'relays_ch1':		(REG_AINCTL, lambda r, old: (old & ~0x07) | _usgn(r, 3),
-									lambda rval: rval & 0x07),
-	'relays_ch2':		(REG_AINCTL, lambda r, old: (old & ~0x38) | _usgn(r, 3) << 3,
-									lambda rval: (rval & 0x38) >> 3),
-	'pretrigger':		(REG_PRETRIG, lambda p, old: _sgn(p, 32), lambda rval: _upsgn(rval, 32)),
-	# TODO Expose cal if required?
-	'state_id':			(REG_STATE,	lambda s, old: (old & ~0xFF) | _usgn(s, 8), lambda rval: rval & 0xFF),
-	'state_id_alt':		(REG_STATE,	lambda s, old: (old & ~0xFF0000) | _usgn(s, 8) << 16, lambda rval: rval >> 16),
+	'x_mode':			(REG_OUTLEN,	to_reg_unsigned(29, 2, allow_set=[ROLL, SWEEP, FULL_FRAME]),
+										from_reg_unsigned(29, 2)),
+
+	'render_mode':		(REG_FILT,		to_reg_unsigned(0, 2, allow_set=[RDR_CUBIC, RDR_MINMAX, RDR_DECI, RDR_DDS]),
+										from_reg_unsigned(0, 2)),
+
+	'waveform_avg':		(REG_FILT,		to_reg_unsigned(2, 7),		from_reg_unsigned(2, 7)),
+
+	'framerate':		(REG_FRATE,		to_reg_unsigned(0, 8, xform=lambda f: f * 256.0 / 477.0),
+										from_reg_unsigned(0, 8, xform=lambda f: f / 256.0 * 477.0)),
+
+	# Cubic Downsampling accessors
+	'render_deci':		(REG_SCALE,		to_reg_unsigned(0, 16, xform=lambda x: 128 * (x - 1)),
+										from_reg_unsigned(0, 16, xform=lambda x: (x / 128.0) + 1)),
+
+	'render_deci_alt':	(REG_SCALE,		to_reg_unsigned(16, 16, xform=lambda x: 128 * (x - 1)),
+										from_reg_unsigned(16, 16, xform=lambda x: (x / 128.0) + 1)),
+
+	# Direct Downsampling accessors
+	'render_dds':		(REG_SCALE,		to_reg_unsigned(0, 16, xform=lambda x: x - 1),
+										from_reg_unsigned(0, 16, xform=lambda x: x + 1)),
+
+	'render_dds_alt':	(REG_SCALE,		to_reg_unsigned(16, 16, xform=lambda x: x - 1),
+										from_reg_unsigned(16, 16, xform=lambda x: x + 1)),
+
+	'offset':			(REG_OFFSET, 	to_reg_signed(0, 32),		from_reg_signed(0, 32)),
+
+	'offset_alt':		(REG_OFFSETA,	to_reg_signed(0, 32),		from_reg_signed(0, 32)),
+
+	'relays_ch1':		(REG_AINCTL, 	to_reg_unsigned(0, 3),		from_reg_unsigned(0, 3)),
+	'relays_ch2':		(REG_AINCTL, 	to_reg_unsigned(3, 3),		from_reg_unsigned(3, 3)),
+	'pretrigger':		(REG_PRETRIG,	to_reg_signed(0, 32),		from_reg_signed(0, 32)),
+
+	'state_id':			(REG_STATE,	 	to_reg_unsigned(0, 8),		from_reg_unsigned(0, 8)),
+	'state_id_alt':		(REG_STATE,	 	to_reg_unsigned(16, 8),		from_reg_unsigned(16, 8)),
 }

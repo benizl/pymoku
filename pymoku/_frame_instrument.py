@@ -134,16 +134,13 @@ class DataFrame(object):
 
 # Revisit: Should this be a Mixin? Are there more instrument classifications of this type, recording ability, for example?
 class FrameBasedInstrument(_instrument.MokuInstrument):
-	def __init__(self, frame_class, **frame_kwargs):
+	def __init__(self):
 		super(FrameBasedInstrument, self).__init__()
 		self._buflen = 1
 		self._queue = FrameQueue(maxsize=self._buflen)
 		self._hb_forced = False
 		self._dlserial = 0
 		self._dlskt = None
-
-		self.frame_class = frame_class
-		self.frame_kwargs = frame_kwargs
 
 		self.binstr = ''
 		self.procstr = ''
@@ -153,6 +150,10 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		self.upload_index = {}
 
 		self._strparser = None
+
+	def set_frame_class(self, frame_class, **frame_kwargs):
+		self.frame_class = frame_class
+		self.frame_kwargs = frame_kwargs
 
 	def flush(self):
 		""" Clear the Frame Buffer.
@@ -185,6 +186,8 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 					return frame
 				elif time.time() > endtime:
 					raise FrameTimeout()
+				else:
+					log.debug("Incorrect state received: %d/%d", frame.trigstate, self._stateid)
 		except Empty:
 			raise FrameTimeout()
 

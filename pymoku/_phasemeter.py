@@ -64,6 +64,8 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 	def __init__(self):
 		"""Create a new PhaseMeter instrument, ready to be attached to a Moku."""
 		super(PhaseMeter, self).__init__(None)
+		self._register_accessors(_pm_reg_handlers)
+		
 		self.id = 3
 		self.type = "phasemeter"
 		self.logname = "MokuPhaseMeterData"
@@ -72,7 +74,6 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument): #TODO Frame instrument
 		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0)),
 						"*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0))]
 
-		self._register_accessors(_pm_reg_handlers)
 
 	def _intToCycles(self, rawValue):
 	    return 2.0 * pow(2.0, 16.0) * rawValue / pow(2.0, 48.0) * _PM_ADC_SMPS / _PM_UPDATE_RATE

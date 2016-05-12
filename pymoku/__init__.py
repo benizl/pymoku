@@ -44,6 +44,8 @@ class Moku(object):
 		self._ctx = zmq.Context()
 		self._conn = self._ctx.socket(zmq.REQ)
 		self._conn.setsockopt(zmq.LINGER, 5000)
+		self._conn.setsockopt(zmq.SNDTIMEO, 1000) # A send should always be quick
+		self._conn.setsockopt(zmq.RCVTIMEO, 2000) # A receive might need to wait on processing
 		self._conn.connect("tcp://%s:%d" % (self._ip, Moku.PORT))
 
 		self.name = None
@@ -114,8 +116,12 @@ class Moku(object):
 		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
 		def _filter(ip):
 			m = Moku(ip)
-			ser = m.get_serial()
-			m.close()
+			try:
+				ser = m.get_serial()
+			except zmq.error.Again:
+				return False
+			finally:
+				m.close()
 
 			return ser == serial
 
@@ -138,8 +144,12 @@ class Moku(object):
 		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
 		def _filter(ip):
 			m = Moku(ip)
-			n = m.get_name()
-			m.close()
+			try:
+				n = m.get_name()
+			except zmq.error.Again:
+				return False
+			finally:
+				m.close()
 
 			return n == name
 

@@ -425,7 +425,6 @@ class LIDataParser(object):
 			return len(self.processed[0])
 		else:
 			i = 0
-			print self.processed
 			for rec1, rec2 in zip(*self.processed):
 				self.fmtdict['n'] += 1
 				self.fmtdict['t'] = (self.fmtdict['n'] - 1) * self.fmtdict['d']

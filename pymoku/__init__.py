@@ -44,9 +44,9 @@ class Moku(object):
 		self._ctx = zmq.Context()
 		self._conn = self._ctx.socket(zmq.REQ)
 		self._conn.setsockopt(zmq.LINGER, 5000)
-		self._conn.setsockopt(zmq.SNDTIMEO, 1000) # A send should always be quick
-		self._conn.setsockopt(zmq.RCVTIMEO, 2000) # A receive might need to wait on processing
 		self._conn.connect("tcp://%s:%d" % (self._ip, Moku.PORT))
+
+		self._set_timeout()
 
 		self.name = None
 		self.led = None
@@ -160,6 +160,15 @@ class Moku(object):
 
 		raise MokuNotFound("Couldn't find Moku: %s" % name)
 
+	def _set_timeout(self, short=True):
+		base = 1000
+
+		if not short:
+			base *= 5
+
+		self._conn.setsockopt(zmq.SNDTIMEO, base) # A send should always be quick
+		self._conn.setsockopt(zmq.RCVTIMEO, 2 * base) # A receive might need to wait on processing
+
 
 	def _read_regs(self, commands):
 		command_data = ''.join([struct.pack('<B', x) for x in commands])
@@ -189,8 +198,14 @@ class Moku(object):
 		if self._instrument is None:
 			DeployException("No Instrument Selected")
 
+		# Deploy doesn't return until the deploy has completed which can take several
+		# seconds on the device. Set an appropriately long timeout for this case.
+		self._set_timeout(short=False)
+
 		self._conn.send(chr(0x43) + chr(self._instrument.id) + chr(0x00))
 		ack = self._conn.recv()
+
+		self._set_timeout(short=True)
 
 		if ord(ack[0]) != 0x43 or ord(ack[1]) != 0x00:
 			raise DeployException("Deploy Error %d" % ord(ack[1]))

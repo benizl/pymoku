@@ -96,7 +96,7 @@ class VoltsFrame(_frame_instrument.DataFrame):
 			log.error("Can't render voltage frame, haven't saved calibration data for state %d", self.stateid)
 			return
 
-		scale1, scale2 = self.scales[self.stateid]
+		scale1, scale2, _, _ = self.scales[self.stateid]
 
 		try:
 			smpls = int(len(self.raw1) / 4)
@@ -327,11 +327,24 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		:type hysteresis: float, volts
 		:param hysteresis: Hysteresis to apply around trigger point."""
+		if self.stateid not in self.scales:
+			log.error("Can't set trigger, haven't saved calibration data for state %d", self.stateid)
+			return
+		g1,g2,d1,d2 = self.scales[self.stateid]
+
 		self.trig_ch = source
 		self.trig_edge = edge
 		self.hysteresis = hysteresis
 		self.hf_reject = hf_reject
 		self.trig_mode = mode
+		if (source == OSC_TRIG_CH1):
+			self.trigger_level = level/g1
+		elif (source == OSC_TRIG_CH2):
+			self.trigger_level = level/g2
+		elif (source == OSC_TRIG_DA1):
+			self.trigger_level = (level/d1)>>4
+		elif (source == OSC_TRIG_DA2):
+			self.trigger_level = (level/d2)>>4
 
 	def set_defaults(self):
 		""" Reset the Oscilloscope to sane defaults. """
@@ -358,20 +371,27 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		sect2 = "calibration.AG-%s-%s-%s-1" % ( "50" if self.relays_ch2 & RELAY_LOWZ else "1M",
 								  "L" if self.relays_ch2 & RELAY_LOWG else "H",
 								  "D" if self.relays_ch2 & RELAY_DC else "A")
+		dac1 = "calibration.DG-1"
+		dac2 = "calibration.DG-2"
+
 		try:
 			g1 = 1 / float(self.calibration[sect1])
 			g2 = 1 / float(self.calibration[sect2])
+			d1 = 1 / float(self.calibration[dac1])
+			d2 = 1 / float(self.calibration[dac2])
 		except (KeyError, TypeError):
 			log.warning("Moku appears uncalibrated")
-			g1 = g2 = 1
+			g1 = g2 = d1 = d2 = 1
 
-		log.debug("gain values for sections %s, %s = %f, %f; deci %f", sect1, sect2, g1, g2, self._deci_gain())
+		log.debug("gain values for sections %s, %s, %s, %s = %f, %f, %f, %f; deci %f", sect1, sect2, dac1, dac2, g1, g2, d1, d2, self._deci_gain())
 
 		if self.ain_mode == _OSC_AIN_DECI:
 			g1 /= self._deci_gain()
 			g2 /= self._deci_gain()
+			d1 /= self._deci_gain()
+			d2 /= self._deci_gain()
 
-		return (g1, g2)
+		return (g1, g2, d1, d2)
 
 	def commit(self):
 		super(Oscilloscope, self).commit()

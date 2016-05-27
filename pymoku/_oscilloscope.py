@@ -180,6 +180,10 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		self.decimation_rate = 1
 
+		# Define any (non- register-mapped) properties that are used when committing
+		# as a commit is called when the instrument is set running
+		self.trig_volts = 0
+
 	def _optimal_decimation(self, t1, t2):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalADCDecimation
 		ts = abs(t1 - t2)
@@ -227,6 +231,21 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			return self.decimation_rate
 		else:
 			return self.decimation_rate / 2**10
+
+	def _trigger_level(self, amplitude, source, scales):
+		# An amplitude in volts is scaled to an ADC level depending on the trigger input source 
+		# and its current configuration
+		[g1, g2, d1, d2] = scales
+		if (source == OSC_TRIG_CH1):
+			level = amplitude/g1
+		elif (source == OSC_TRIG_CH2):
+			level = amplitude/g2
+		elif (source == OSC_TRIG_DA1):
+			level = (amplitude/d1)/16
+		elif (source == OSC_TRIG_DA2):
+			level = (amplitude/d2)/16
+
+		return level
 
 	def _update_datalogger_params(self, ch1, ch2):
 		samplerate = _OSC_ADC_SMPS / self.decimation_rate
@@ -313,6 +332,27 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:type state: bool """
 		self.ain_mode = _OSC_AIN_DECI if state else _OSC_AIN_DDS
 
+	
+	def set_source(self, ch, source=OSC_SOURCE_ADC):
+		""" Sets input source for given channel
+
+		:type ch: [1,2]
+		:param ch: Which input channel to set the source of.
+
+		:type source: OSC_SOURCE_DAC, OSC_SOURCE_ADC
+		:param source: Input source. May be either from the ADC or DAC of the corresponding channel. 
+
+		"""
+		valid_sources = [OSC_SOURCE_ADC, OSC_SOURCE_DAC]
+		if source not in valid_sources:
+			log.error("Invalid input source of %d. Expected one of %s", source, valid_sources)
+			return
+
+		if(ch==1):
+			self.source_ch1 = source
+		if(ch==2):
+			self.source_ch2 = source
+
 	def set_trigger(self, source, edge, level, hysteresis=0, hf_reject=False, mode=OSC_TRIG_AUTO):
 		""" Sets trigger source and parameters.
 
@@ -327,24 +367,12 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		:type hysteresis: float, volts
 		:param hysteresis: Hysteresis to apply around trigger point."""
-		if self.stateid not in self.scales:
-			log.error("Can't set trigger, haven't saved calibration data for state %d", self.stateid)
-			return
-		g1,g2,d1,d2 = self.scales[self.stateid]
-
 		self.trig_ch = source
 		self.trig_edge = edge
 		self.hysteresis = hysteresis
 		self.hf_reject = hf_reject
 		self.trig_mode = mode
-		if (source == OSC_TRIG_CH1):
-			self.trigger_level = level/g1
-		elif (source == OSC_TRIG_CH2):
-			self.trigger_level = level/g2
-		elif (source == OSC_TRIG_DA1):
-			self.trigger_level = (level/d1)>>4
-		elif (source == OSC_TRIG_DA2):
-			self.trigger_level = (level/d2)>>4
+		self.trig_volts = level # Save the desired trigger voltage
 
 	def set_defaults(self):
 		""" Reset the Oscilloscope to sane defaults. """
@@ -393,10 +421,19 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 		return (g1, g2, d1, d2)
 
+	def _update_dependent_regs(self, scales):
+		# Trigger level must be scaled depending on the current relay settings and chosen trigger source
+		self.trigger_level = self._trigger_level(self.trig_volts, self.trig_ch, scales)
+		print "Set trigger level to: ", self.trigger_level
+		
 	def commit(self):
-		super(Oscilloscope, self).commit()
-		self.scales[self._stateid] = self._calculate_scales()
+		scales = self._calculate_scales()
+		# Update any calibration scaling dependent register values
+		self._update_dependent_regs(scales)
 
+		# Commit the register values to the device
+		super(Oscilloscope, self).commit()
+		self.scales[self._stateid] = scales
 		# TODO: Trim scales dictionary, getting rid of old ids
 
 	# Bring in the docstring from the superclass for our docco.

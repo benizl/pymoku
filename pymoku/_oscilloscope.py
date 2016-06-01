@@ -392,11 +392,11 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 	attach_moku.__doc__ = MokuInstrument.attach_moku.__doc__
 
 _osc_reg_handlers = {
-	'source_ch1':		(REG_OSC_OUTSEL,	to_reg_unsigned(0, 2, allow_set=[OSC_SOURCE_ADC, OSC_SOURCE_DAC]),
-											from_reg_unsigned(0, 2)),
+	'source_ch1':		(REG_OSC_OUTSEL,	to_reg_unsigned(0, 1, allow_set=[OSC_SOURCE_ADC, OSC_SOURCE_DAC]),
+											from_reg_unsigned(0, 1)),
 
-	'source_ch2':		(REG_OSC_OUTSEL,	to_reg_unsigned(1, 2, allow_set=[OSC_SOURCE_ADC, OSC_SOURCE_DAC]),
-											from_reg_unsigned(1, 2)),
+	'source_ch2':		(REG_OSC_OUTSEL,	to_reg_unsigned(1, 1, allow_set=[OSC_SOURCE_ADC, OSC_SOURCE_DAC]),
+											from_reg_unsigned(1, 1)),
 
 	'trig_mode':		(REG_OSC_TRIGMODE,	to_reg_unsigned(0, 2, allow_set=[OSC_TRIG_AUTO, OSC_TRIG_NORMAL, OSC_TRIG_SINGLE]),
 											from_reg_unsigned(0, 2)),
@@ -411,8 +411,10 @@ _osc_reg_handlers = {
 	'hysteresis':		(REG_OSC_TRIGCTL,	to_reg_unsigned(16, 16),	from_reg_unsigned(16, 16)),
 	'trigger_level':	(REG_OSC_TRIGLVL,	to_reg_signed(0, 32),		to_reg_signed(0, 32)),
 
-	'loopback_mode':	(REG_OSC_ACTL,		to_reg_unsigned(0, 1, allow_set=[_OSC_LB_CLIP, _OSC_LB_ROUND]),
+	'loopback_mode_ch1':	(REG_OSC_ACTL,	to_reg_unsigned(0, 1, allow_set=[_OSC_LB_CLIP, _OSC_LB_ROUND]),
 											from_reg_unsigned(0, 1)),
+	'loopback_mode_ch2':	(REG_OSC_ACTL,	to_reg_unsigned(1, 1, allow_set=[_OSC_LB_CLIP, _OSC_LB_ROUND]),
+											from_reg_unsigned(1, 1)),
 
 	'ain_mode':			(REG_OSC_ACTL,		to_reg_unsigned(2, 16, allow_set=[_OSC_AIN_DDS, _OSC_AIN_DECI]),
 											from_reg_unsigned(2, 16)),

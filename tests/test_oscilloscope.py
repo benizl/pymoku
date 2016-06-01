@@ -20,10 +20,9 @@ class Test_Trigger:
 		'''
 			Ensure that the start of the frame is the expected amplitude (within some error)
 		'''
+		i = base_instr
 		allowable_error = 0.1 # Volts
 
-		# Prepare instrument for test
-		i = base_instr
 		# Enforce buffer/frame offset of zero
 		i.set_timebase(0,2e-6)
 		# Set the trigger
@@ -50,13 +49,26 @@ class Test_Timebase:
 	'''
 
 
+
 class Test_Source:
 	'''
 		Ensure the source is set and rendered as expected
 	'''
-
-
-	def test_synthesiser(base_instr):
+	@pytest.mark.parametrize("ch, amp",[
+		(1, 0.2),
+		(1, 0.5),
+		(2, 0.1),
+		(2, 1.0),
+		])
+	def test_dac(self, base_instr, ch, amp):
 		i = base_instr
-		i.set_defaults()
-		assert 1 == 1
+		i.synth_sinewave(ch,amp,1e6,0)
+		i.set_source(ch, OSC_SOURCE_DAC)
+		i.set_timebase(0,2e-6)
+		i.commit()
+
+		# Max and min should be around ~amp
+		frame = i.get_frame()
+		assert in_bounds(max(getattr(frame, "ch"+str(ch))), amp, 0.05)
+		assert in_bounds(min(getattr(frame, "ch"+str(ch))), amp, 0.05)
+

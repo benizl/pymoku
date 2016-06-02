@@ -48,6 +48,7 @@ class Moku(object):
 
 		self._set_timeout()
 
+		self.serial = self.get_serial()
 		self.name = None
 		self.led = None
 		self.led_colours = None

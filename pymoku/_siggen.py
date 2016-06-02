@@ -5,6 +5,7 @@ import logging
 from pymoku import ValueOutOfRangeException
 
 from _instrument import *
+from _instrument import _usgn, _sgn
 import _frame_instrument
 
 log = logging.getLogger(__name__)
@@ -287,18 +288,12 @@ _siggen_reg_handlers = {
 											from_reg_unsigned(0, 32, xform=lambda p:p * _SG_AMPSCALE)),
 
 	'mod1_frequency':	((REG_SG_MODF1_H, REG_SG_MODF1_L),
-											to_reg_unsigned(0, 48, xform=lambda f:f / _SG_FREQSCALE),
-											from_reg_unsigned(0, 48, xform=lambda f:f * _SG_FREQSCALE)),
+											lambda f, old: ((old[0] & 0x0000FFFF) | (_usgn(f/_SG_FREQSCALE, 48) >> 16) & 0xFFFF0000, _usgn(f/_SG_FREQSCALE, 48) & 0xFFFFFFFF),
+											lambda rval: _SG_FREQSCALE * ((rval[0] & 0xFFFF0000) << 16 | rval[1])),
 
 	'mod2_frequency':	((REG_SG_MODF2_H, REG_SG_MODF2_L),
-											to_reg_unsigned(0, 48, xform=lambda f:f / _SG_FREQSCALE),
-											from_reg_unsigned(0, 48, xform=lambda f:f * _SG_FREQSCALE)),
-
-	'mod1_offset':		(REG_SG_MODF1_H,	to_reg_signed(0, 16, xform=lambda o: o / _SG_AMPSCALE),
-											from_reg_signed(0, 16, xform=lambda o: o * _SG_AMPSCALE)),
-
-	'mod2_offset':		(REG_SG_MODF2_H,	to_reg_signed(0, 16, xform=lambda o: o / _SG_AMPSCALE),
-											from_reg_signed(0, 16, xform=lambda o: o * _SG_AMPSCALE)),
+											lambda f, old: ((old[0] & 0x0000FFFF) | (_usgn(f/_SG_FREQSCALE, 48) >> 16) & 0xFFFF0000, _usgn(f/_SG_FREQSCALE, 48) & 0xFFFFFFFF),
+											lambda rval: _SG_FREQSCALE * ((rval[0] & 0xFFFF0000) << 16 | rval[1])),
 
 	'out1_t0':			(REG_SG_T01,		to_reg_signed(0, 32, xform=lambda o: o / _SG_PHASESCALE),
 											from_reg_signed(0, 32, xform=lambda o: o * _SG_PHASESCALE)),
@@ -323,16 +318,16 @@ _siggen_reg_handlers = {
 											from_reg_unsigned(0, 48, xform=lambda r: r * _SG_FREQSCALE)),
 
 	'out1_fallrate':	((REG_SG_RFRATE1_H, REG_SG_FALLRATE1_L),
-											to_reg_unsigned(0, 48, xform=lambda r: r / _SG_FREQSCALE),
-											from_reg_unsigned(0, 48, xform=lambda r: r * _SG_FREQSCALE)),
+											lambda f, old: ((old[0] & 0x0000FFFF) | (_usgn(f/_SG_FREQSCALE, 48) >> 16) & 0xFFFF0000, _usgn(f/_SG_FREQSCALE, 48) & 0xFFFFFFFF),
+											lambda rval: _SG_FREQSCALE * ((rval[0] & 0xFFFF0000) << 16 | rval[1])),
 
 	'out2_riserate':	((REG_SG_RFRATE2_H, REG_SG_RISERATE2_L),
 											to_reg_unsigned(0, 48, xform=lambda r: r / _SG_FREQSCALE),
 											from_reg_unsigned(0, 48, xform=lambda r: r * _SG_FREQSCALE)),
 
 	'out2_fallrate':	((REG_SG_RFRATE2_H, REG_SG_FALLRATE2_L),
-											to_reg_unsigned(0, 48, xform=lambda r: r / _SG_FREQSCALE),
-											from_reg_unsigned(0, 48, xform=lambda r: r * _SG_FREQSCALE)),
+											lambda f, old: ((old[0] & 0x0000FFFF) | (_usgn(f/_SG_FREQSCALE, 48) >> 16) & 0xFFFF0000, _usgn(f/_SG_FREQSCALE, 48) & 0xFFFFFFFF),
+											lambda rval: _SG_FREQSCALE * ((rval[0] & 0xFFFF0000) << 16 | rval[1])),
 
 	'mod1_amplitude':	(REG_SG_MODA1,		to_reg_unsigned(0, 32, xform=lambda a: a / _SG_DEPTHSCALE),
 											from_reg_unsigned(0, 32, xform=lambda a: a * _SG_DEPTHSCALE)),
@@ -346,8 +341,8 @@ _siggen_reg_handlers = {
 	'out2_modsource':	(REG_SG_MODSOURCE,	to_reg_unsigned(3, 2, allow_set=[SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC]),
 											from_reg_unsigned(3, 2)),
 
-	'out1_amp_pc':		(REG_SG_PRECLIP,	to_reg_unsigned(16, 16, xform=lambda a: a / _SG_AMPSCALE),
-											from_reg_unsigned(16, 16, xform=lambda a: a * _SG_AMPSCALE)),
+	'out1_amp_pc':		(REG_SG_PRECLIP,	to_reg_unsigned(0, 16, xform=lambda a: a / _SG_AMPSCALE),
+											from_reg_unsigned(0, 16, xform=lambda a: a * _SG_AMPSCALE)),
 
 	'out2_amp_pc':		(REG_SG_PRECLIP,	to_reg_unsigned(16, 16, xform=lambda a: a / _SG_AMPSCALE),
 											from_reg_unsigned(16, 16, xform=lambda a: a * _SG_AMPSCALE)),

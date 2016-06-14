@@ -116,13 +116,15 @@ class Moku(object):
 		:param timeout: operation timeout
 		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
 		def _filter(ip):
-			m = Moku(ip)
+			m = None
 			try:
+				m = Moku(ip)
 				ser = m.get_serial()
 			except zmq.error.Again:
 				return False
 			finally:
-				m.close()
+				if m is not None:
+					m.close()
 
 			return ser == serial
 
@@ -144,13 +146,15 @@ class Moku(object):
 		:param timeout: operation timeout
 		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
 		def _filter(ip):
-			m = Moku(ip)
+			m = None
 			try:
+				m = Moku(ip)
 				n = m.get_name()
 			except zmq.error.Again:
 				return False
 			finally:
-				m.close()
+				if m is not None:
+					m.close()
 
 			return n == name
 
@@ -162,10 +166,10 @@ class Moku(object):
 		raise MokuNotFound("Couldn't find Moku: %s" % name)
 
 	def _set_timeout(self, short=True):
-		base = 1000
+		base = 5000
 
 		if not short:
-			base *= 5
+			base *= 2
 
 		self._conn.setsockopt(zmq.SNDTIMEO, base) # A send should always be quick
 		self._conn.setsockopt(zmq.RCVTIMEO, 2 * base) # A receive might need to wait on processing
@@ -461,9 +465,13 @@ class Moku(object):
 		pkt += struct.pack("<QQ", 0, len(data))
 		pkt += data
 
+		self._set_timeout(short=False)
+
 		self._fs_send_generic(2, pkt)
 
 		self._fs_receive_generic(2)
+
+		self._set_timeout(short=True)
 
 		return remotename
 
@@ -473,10 +481,14 @@ class Moku(object):
 		pkt = chr(len(qfname)) + qfname
 		pkt += struct.pack("<QQ", 0, l)
 
+		self._set_timeout(short=False)
+
 		self._fs_send_generic(1, pkt)
 
 		reply = self._fs_receive_generic(1)
 		l = struct.unpack("<Q", reply[:8])[0]
+
+		self._set_timeout(short=True)
 
 		with open(fname, "wb") as f:
 			f.write(reply[8:])

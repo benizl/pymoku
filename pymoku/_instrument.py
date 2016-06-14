@@ -447,6 +447,8 @@ _instr_reg_handlers = {
 
 	'relays_ch1':		(REG_AINCTL, 	to_reg_unsigned(0, 3),		from_reg_unsigned(0, 3)),
 	'relays_ch2':		(REG_AINCTL, 	to_reg_unsigned(3, 3),		from_reg_unsigned(3, 3)),
+	'en_in_ch1':		(REG_AINCTL,	to_reg_bool(6),				from_reg_bool(6)),
+	'en_in_ch2':		(REG_AINCTL,	to_reg_bool(7),				from_reg_bool(7)),
 	'pretrigger':		(REG_PRETRIG,	to_reg_signed(0, 32),		from_reg_signed(0, 32)),
 
 	'state_id':			(REG_STATE,	 	to_reg_unsigned(0, 8),		from_reg_unsigned(0, 8)),

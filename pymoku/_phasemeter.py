@@ -66,6 +66,9 @@ class PhaseMeter_SignalGenerator(MokuInstrument):
 		self._pm_out1_amplitude = 0
 		self._pm_out2_amplitude = 0
 
+		self.set_frontend(1, fiftyr=True, atten=False, ac=True)
+		self.set_frontend(2, fiftyr=True, atten=False, ac=True)
+
 	def synth_sinewave(self, ch, amplitude, frequency):
 		if ch == 1:
 			self._pm_out1_amplitude = amplitude
@@ -288,14 +291,14 @@ _pm_reg_handlers = {
 	'init_freq_ch2':		((REG_PM_INITF2_H, REG_PM_INITF2_L),
 											to_reg_unsigned(0,48, xform=lambda f: f * _PM_FREQSCALE),
 											from_reg_unsigned(0,48,xform=lambda f: f / _PM_FREQSCALE)),
-	'control_gain':			(REG_PM_CGAIN,	lambda f, old: _sgn(f, 12) | (old & ~0xFFF),
-											lambda rval: _upsgn(rval & 0xFFF, 12)),
-	'control_shift':		(REG_PM_CGAIN,	lambda f, old: (_usgn(f, 4) << 20) | (old & ~0xF00000),
-											lambda rval: (rval >> 20) & 0xF),
-	'integrator_shift':		(REG_PM_INTSHIFT,lambda f, old: (_usgn(f, 4) << 16) | (old & ~0xF0000),
-											lambda rval: (rval >> 16) & 0xF),
-	'output_decimation':	(REG_PM_OUTDEC,	lambda f, old: _usgn(f, 17) | (old & ~0x1FFFF),
-											lambda rval: rval & 0x1FFFF),
-	'output_shift':			(REG_PM_OUTSHIFT,lambda f, old: (_usgn(f, 5) << 17) | (old & ~0x3E0000),
-											lambda rval: (rval >> 17) & 0x1F),
+	'control_gain':			(REG_PM_CGAIN,	to_reg_signed(0,16),
+											from_reg_signed(0,16)),
+	'control_shift':		(REG_PM_CGAIN,	to_reg_unsigned(20,4),
+											from_reg_unsigned(20,4)),
+	'integrator_shift':		(REG_PM_INTSHIFT, to_reg_unsigned(16,4),
+											from_reg_unsigned(16,4)),
+	'output_decimation':	(REG_PM_OUTDEC,	to_reg_unsigned(0,17),
+											from_reg_unsigned(0,17)),
+	'output_shift':			(REG_PM_OUTSHIFT, to_reg_unsigned(17,5),
+											from_reg_unsigned(17,5))
 }

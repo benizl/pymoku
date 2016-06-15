@@ -78,8 +78,10 @@ try:
 	# Set up signal generator for enabled channels
 	if(ch1_out_enable):
 		i.synth_sinewave(1, ch1_out_amp, ch1_out_freq)
+		i.enable_output(1,ch1_out_enable)
 	if(ch2_out_enable):
 		i.synth_sinewave(2, ch2_out_amp, ch2_out_freq)
+		i.enable_output(2,ch2_out_enable)
 
 	# Atomically apply all instrument settings above
 	i.commit()

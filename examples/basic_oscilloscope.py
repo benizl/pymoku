@@ -36,8 +36,6 @@ try:
 	last = 0
 	while True:
 		frame = i.get_frame()
-
-		plt.pause(0.001)
 		line1.set_ydata(frame.ch1)
 		line2.set_ydata(frame.ch2)
 		line1.set_xdata(range(1024))

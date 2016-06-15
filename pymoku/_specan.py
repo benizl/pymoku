@@ -3,14 +3,9 @@ import math
 import logging
 
 from _instrument import *
-import _instrument
 import _frame_instrument
 
 from bisect import bisect_right
-
-# Annoying that import * doesn't pick up function defs??
-_sgn = _instrument._sgn
-_usgn = _instrument._usgn
 
 log = logging.getLogger(__name__)
 
@@ -334,9 +329,12 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 	"""
 	def __init__(self):
 		"""Create a new Spectrum Analyser instrument, ready to be attached to a Moku."""
-		self.scales = {}
+		super(SpecAn, self).__init__()
+		self._register_accessors(_sa_reg_handlers)
 
-		super(SpecAn, self).__init__(SpectrumFrame, scales=self.scales)
+		self.scales = {}
+		self.set_frame_class(SpectrumFrame, scales=self.scales)
+
 		self.id = 2
 		self.type = "specan"
 		self.calibration = None
@@ -487,7 +485,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 			win = SA_WIN_NONE
 		else:
 			win = SA_WIN_NONE
-			log.error('Invalid window type %s. Choose one of {{FLATTOP, HANNING, BH, NONE}}',name)
+			log.error('Invalid window type %s. Choose one of {{FLATTOP, HANNING, BH, NONE}}', name)
 		return win
 
 	def set_dbmscale(self,dbm=True):
@@ -606,7 +604,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		# TODO: Trim scales dictionary, getting rid of old ids
 
 	# Bring in the docstring from the superclass for our docco.
-	commit.__doc__ = _instrument.MokuInstrument.commit.__doc__
+	commit.__doc__ = MokuInstrument.commit.__doc__
 
 	def attach_moku(self, moku):
 		super(SpecAn, self).attach_moku(moku)
@@ -614,51 +612,34 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		# The moku contains calibration data for various configurations
 		self.calibration = dict(self._moku._get_property_section("calibration"))
 
-	attach_moku.__doc__ = _instrument.MokuInstrument.attach_moku.__doc__
+	attach_moku.__doc__ = MokuInstrument.attach_moku.__doc__
 
-_sa_reg_hdl = [
-	('demod',			REG_SA_DEMOD,		lambda r, old: _usgn(r * _SA_FREQ_SCALE, 32), lambda rval: rval / _SA_FREQ_SCALE),
-	('dec_enable',		REG_SA_DECCTL,		lambda r, old: (old & ~1) | int(r) if int(r) in [0, 1] else None,
-											lambda rval: bool(rval & 1)),
-	('dec_cic2',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7E) | _usgn(r - 1, 6) << 1,
-											lambda rval: ((rval & 0x7E) >> 1) + 1),
-	('bs_cic2',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780) | _usgn(r, 4) << 7,
-											lambda rval: (rval & 0x780) >> 7),
-	('dec_cic3',		REG_SA_DECCTL,		lambda r, old: (old & ~0x7800) | _usgn(r - 1, 4) << 11,
-											lambda rval: ((rval & 0x7800) >> 11) + 1),
-	('bs_cic3',			REG_SA_DECCTL,		lambda r, old: (old & ~0x78000) | _usgn(r, 4) << 15,
-											lambda rval: (rval & 0x78000) >> 15),
-	('dec_iir',			REG_SA_DECCTL,		lambda r, old: (old & ~0x780000) | _usgn(r - 1, 4) << 19,
-											lambda rval: ((rval & 0x780000) >> 19) + 1),
-	('rbw_ratio',		REG_SA_RBW,			lambda r, old: (old & ~0xFFFFFF) | _usgn(r * 2.0**10.0, 24),
-											lambda rval: (rval & 0xFFFFFF)/2.0**10.0 ),
-	('window',			REG_SA_RBW,			lambda r, old: (old & ~0x3000000) | r << 24 if r in [SA_WIN_NONE, SA_WIN_BH, SA_WIN_HANNING, SA_WIN_FLATTOP] else SA_WIN_NONE,
-											lambda rval: (rval & 0x3000000) >> 24),
-	('ref_level',		REG_SA_REFLVL,		lambda r, old: (old & ~0x0F) | _usgn(r, 4),
-											lambda rval: rval & 0x0F),
-	('gain_sos0',		REG_SA_SOS0_GAIN,	lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('a1_sos0',			REG_SA_SOS0_A1,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('a2_sos0',			REG_SA_SOS0_A2,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('b1_sos0',			REG_SA_SOS0_B1,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('gain_sos1',		REG_SA_SOS1_GAIN,	lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('a1_sos1',			REG_SA_SOS1_A1,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('a2_sos1',			REG_SA_SOS1_A2,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('b1_sos1',			REG_SA_SOS1_B1,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('gain_sos2',		REG_SA_SOS2_GAIN,	lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('a1_sos2',			REG_SA_SOS2_A1,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('a2_sos2',			REG_SA_SOS2_A2,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-	('b1_sos2',			REG_SA_SOS2_B1,		lambda r, old: _sgn(r, 18),
-											lambda rval: rval),
-]
-_instrument._attach_register_handlers(_sa_reg_hdl, SpecAn)
+_sa_reg_handlers = {
+	'demod':			(REG_SA_DEMOD,		to_reg_unsigned(0, 32, xform=lambda f: f * _SA_FREQ_SCALE),
+											from_reg_unsigned(0, 32, xform=lambda f: f / _SA_FREQ_SCALE)),
+
+	'dec_enable':		(REG_SA_DECCTL,		to_reg_bool(0),				from_reg_bool(0)),
+	'dec_cic2':			(REG_SA_DECCTL,		to_reg_unsigned(1, 6),		from_reg_unsigned(1, 6)),
+	'bs_cic2':			(REG_SA_DECCTL,		to_reg_unsigned(7, 4),		from_reg_unsigned(7, 4)),
+	'dec_cic3':			(REG_SA_DECCTL,		to_reg_unsigned(11, 4),		from_reg_unsigned(11, 4)),
+	'bs_cic3':			(REG_SA_DECCTL,		to_reg_unsigned(15, 4),		from_reg_unsigned(15, 4)),
+	'dec_iir':			(REG_SA_DECCTL,		to_reg_unsigned(19, 4),		from_reg_unsigned(19, 4)),
+	'rbw_ratio':		(REG_SA_RBW,		to_reg_unsigned(0, 24),		from_reg_unsigned(0, 24)),
+
+	'window':			(REG_SA_RBW,		to_reg_unsigned(24, 2, allow_set=[SA_WIN_NONE, SA_WIN_BH, SA_WIN_HANNING, SA_WIN_FLATTOP]),
+											from_reg_unsigned(24, 2)),
+
+	'ref_level':		(REG_SA_REFLVL,		to_reg_unsigned(0, 4),		from_reg_unsigned(0, 4)),
+	'gain_sos0':		(REG_SA_SOS0_GAIN,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'a1_sos0':			(REG_SA_SOS0_A1,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'a2_sos0':			(REG_SA_SOS0_A2,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'b1_sos0':			(REG_SA_SOS0_B1,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'gain_sos1':		(REG_SA_SOS1_GAIN,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'a1_sos1':			(REG_SA_SOS1_A1,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'a2_sos1':			(REG_SA_SOS1_A2,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'b1_sos1':			(REG_SA_SOS1_B1,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'gain_sos2':		(REG_SA_SOS2_GAIN,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'a1_sos2':			(REG_SA_SOS2_A1,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'a2_sos2':			(REG_SA_SOS2_A2,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+	'b1_sos2':			(REG_SA_SOS2_B1,	to_reg_signed(0, 18),		from_reg_signed(0, 18)),
+}

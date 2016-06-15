@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.DEBUG)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku('192.168.1.106')
+m = Moku.get_by_name('example')
 
 i = m.discover_instrument()
 if i is None or i.type != 'specan':
@@ -33,7 +33,7 @@ windowType = i.window_type('NONE')
 
 # Set FFT frequency span (Hz)
 start_freq = 10e6
-stop_freq = 24.32e6
+stop_freq = 250e6
 #################################
 # END Instrument Configuration
 #################################

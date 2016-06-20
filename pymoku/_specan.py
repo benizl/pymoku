@@ -587,7 +587,10 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 		# Compute the frequency dependent correction arrays
 		# The CIC correction is only for CIC1 which is decimation=4 only, and 10th order
-		fcorrs = [ (1/self._calculate_adc_freq_resp(f, True)/self._calculate_cic_freq_resp(f, 4, 10)) for f in freqs]
+		if(self._total_decimation >= 4):
+			fcorrs = [ (1/self._calculate_adc_freq_resp(f/ADC_SMP_RATE, True)) for f in freqs]
+		else:
+			fcorrs = [ (1/self._calculate_adc_freq_resp(f/ADC_SMP_RATE, True)/self._calculate_cic_freq_resp(f/ADC_SMP_RATE, 4, 10)) for f in freqs]
 
 		return {'g1': g1, 'g2': g2, 'fs': freqs, 'fcorrs': fcorrs, 'fspan': [self._f1_full, self._f2_full], 'dbmscale': self.dbmscale}
 

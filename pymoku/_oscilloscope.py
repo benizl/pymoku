@@ -346,6 +346,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
 		self.set_frontend(1)
 		self.set_frontend(2)
+		self.en_in_ch1 = True
+		self.en_in_ch2 = True
 
 	def _calculate_scales(self):
 		# Returns the bits-to-volts numbers for each channel in the current state

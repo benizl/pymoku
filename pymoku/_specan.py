@@ -506,6 +506,8 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 
 		self.set_frontend(1,fiftyr=False, atten=True, ac=False)
 		self.set_frontend(2,fiftyr=False, atten=True, ac=False)
+		self.en_in_ch1 = True
+		self.en_in_ch2 = True
 
 		self.set_dbmscale(True)
 

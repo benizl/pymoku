@@ -261,6 +261,9 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		self.set_frontend(1, fiftyr=True, atten=True, ac=True)
 		self.set_frontend(2, fiftyr=True, atten=True, ac=True)
 
+		self.en_in_ch1 = True
+		self.en_in_ch2 = True
+
 	def datalogger_start(self, start, duration, use_sd, ch1, ch2, filetype):
 		self._update_datalogger_params(ch1, ch2)
 		super(PhaseMeter, self).datalogger_start(start=start, duration=duration, use_sd=use_sd, ch1=ch1, ch2=ch2, filetype=filetype)

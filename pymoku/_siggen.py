@@ -105,6 +105,10 @@ class SignalGenerator(MokuInstrument):
 		self.out1_frequency = 0
 		self.out2_frequency = 0
 
+		# Disable inputs on hardware that supports it
+		self.en_in_ch1 = False
+		self.en_in_ch2 = False
+
 	def synth_sinewave(self, ch, amplitude, frequency, offset=0):
 		""" Generate a Sine Wave with the given parameters on the given channel.
 

@@ -3,13 +3,8 @@ import math
 import logging
 
 from _instrument import *
-import _instrument
 import _frame_instrument
 import _siggen
-
-# Annoying that import * doesn't pick up function defs??
-_sgn = _instrument._sgn
-_usgn = _instrument._usgn
 
 log = logging.getLogger(__name__)
 
@@ -43,9 +38,9 @@ OSC_EDGE_BOTH		= 2
 
 # Re-export the top level attributes so they'll be picked up by pymoku.instruments, we
 # do actually want to give people access to these constants directly for Oscilloscope
-OSC_ROLL			= _instrument.ROLL
-OSC_SWEEP			= _instrument.SWEEP
-OSC_FULL_FRAME		= _instrument.FULL_FRAME
+OSC_ROLL			= ROLL
+OSC_SWEEP			= SWEEP
+OSC_FULL_FRAME		= FULL_FRAME
 
 _OSC_LB_ROUND		= 0
 _OSC_LB_CLIP		= 1
@@ -53,8 +48,8 @@ _OSC_LB_CLIP		= 1
 _OSC_AIN_DDS		= 0
 _OSC_AIN_DECI		= 1
 
-_OSC_ADC_SMPS		= _instrument.ADC_SMP_RATE
-_OSC_BUFLEN			= _instrument.CHN_BUFLEN
+_OSC_ADC_SMPS		= ADC_SMP_RATE
+_OSC_BUFLEN			= CHN_BUFLEN
 _OSC_SCREEN_WIDTH	= 1024
 _OSC_FPS			= 10
 
@@ -91,7 +86,6 @@ class VoltsFrame(_frame_instrument.DataFrame):
 		self.scales = scales
 
 	def process_complete(self):
-
 		if self.stateid not in self.scales:
 			log.error("Can't render voltage frame, haven't saved calibration data for state %d", self.stateid)
 			return
@@ -121,26 +115,6 @@ class VoltsFrame(_frame_instrument.DataFrame):
 		return True
 
 class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator):
-
-	def get_hdrstr(self, ch1, ch2):
-		chs = [ch1, ch2]
-
-		hdr = "Moku:Lab Data Logger\r\nStart,{{T}}\r\nSample Rate {} Hz\r\nTime".format(self.get_samplerate())
-		for i,c in enumerate(chs):
-			if c:
-				hdr += ", Channel {i}".format(i=i+1)
-		hdr += "\r\n"
-		return hdr
-
-	def get_fmtstr(self, ch1, ch2):
-		chs = [ch1, ch2]
-		fmtstr = "{t}"
-		for i,c in enumerate(chs):
-			if c:
-				fmtstr += ",{{ch{i}:.8e}}".format(i=i+1)
-		fmtstr += "\r\n"
-		return fmtstr
-
 	""" Oscilloscope instrument object. This should be instantiated and attached to a :any:`Moku` instance.
 
 	.. automethod:: pymoku.instruments.Oscilloscope.__init__
@@ -164,11 +138,12 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		Name of this instrument.
 
 	"""
+
 	def __init__(self):
 		"""Create a new Oscilloscope instrument, ready to be attached to a Moku."""
-		self.scales = {}
+		super(Oscilloscope, self).__init__()
+		self._register_accessors(_osc_reg_handlers)
 
-		super(Oscilloscope, self).__init__(VoltsFrame, scales=self.scales)
 		self.id = 1
 		self.type = "oscilloscope"
 		self.calibration = None
@@ -183,6 +158,11 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# Define any (non- register-mapped) properties that are used when committing
 		# as a commit is called when the instrument is set running
 		self.trig_volts = 0
+
+		self.scales = {}
+
+		self.set_frame_class(VoltsFrame, scales=self.scales)
+
 
 	def _optimal_decimation(self, t1, t2):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalADCDecimation
@@ -259,6 +239,25 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			self.procstr[1] = "*C"
 		self.fmtstr = self.get_fmtstr(ch1,ch2)
 		self.hdrstr = self.get_hdrstr(ch1,ch2)
+
+	def get_hdrstr(self, ch1, ch2):
+		chs = [ch1, ch2]
+
+		hdr = "Moku:Lab Data Logger\r\nStart,{{T}}\r\nSample Rate {} Hz\r\nTime".format(self.get_samplerate())
+		for i,c in enumerate(chs):
+			if c:
+				hdr += ", Channel {i}".format(i=i+1)
+		hdr += "\r\n"
+		return hdr
+
+	def get_fmtstr(self, ch1, ch2):
+		chs = [ch1, ch2]
+		fmtstr = "{t}"
+		for i,c in enumerate(chs):
+			if c:
+				fmtstr += ",{{ch{i}:.8e}}".format(i=i+1)
+		fmtstr += "\r\n"
+		return fmtstr
 
 	def datalogger_start(self, start, duration, use_sd, ch1, ch2, filetype):
 		self._update_datalogger_params(ch1, ch2)
@@ -388,6 +387,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
 		self.set_frontend(1)
 		self.set_frontend(2)
+		self.en_in_ch1 = True
+		self.en_in_ch2 = True
 
 	def _calculate_scales(self):
 		# Returns the bits-to-volts numbers for each channel in the current state
@@ -437,7 +438,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# TODO: Trim scales dictionary, getting rid of old ids
 
 	# Bring in the docstring from the superclass for our docco.
-	commit.__doc__ = _instrument.MokuInstrument.commit.__doc__
+	commit.__doc__ = MokuInstrument.commit.__doc__
 
 	def attach_moku(self, moku):
 		super(Oscilloscope, self).attach_moku(moku)
@@ -447,30 +448,35 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		except:
 			log.warning("Can't read calibration values.")
 
-	attach_moku.__doc__ = _instrument.MokuInstrument.attach_moku.__doc__
+	attach_moku.__doc__ = MokuInstrument.attach_moku.__doc__
 
-_osc_reg_hdl = [
-	('source_ch1',		REG_OSC_OUTSEL,		lambda s, old: (old & ~1) | s if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,
-											lambda rval: rval & 1),
-	('source_ch2',		REG_OSC_OUTSEL,		lambda s, old: (old & ~2) | s << 1 if s in [OSC_SOURCE_ADC, OSC_SOURCE_DAC] else None,
-											lambda rval: (rval & 2) >> 1),
-	('trig_mode',		REG_OSC_TRIGMODE,	lambda s, old: (old & ~3) | s if s in [OSC_TRIG_AUTO, OSC_TRIG_NORMAL, OSC_TRIG_SINGLE] else None,
-											lambda rval: rval & 3),
-	('trig_edge',		REG_OSC_TRIGCTL,	lambda s, old: (old & ~3) | s if s in [OSC_EDGE_RISING, OSC_EDGE_FALLING, OSC_EDGE_BOTH] else None,
-											lambda rval: rval & 3),
-	('trig_ch',			REG_OSC_TRIGCTL,	lambda s, old: (old & ~0x7F0) | s << 4 if s in
-												[OSC_TRIG_CH1, OSC_TRIG_CH2, OSC_TRIG_DA1, OSC_TRIG_DA2] else None,
-											lambda rval: (rval & 0x7F0) >> 4),
-	('hf_reject',		REG_OSC_TRIGCTL,	lambda s, old: (old & ~0x1000) | s << 12 if int(s) in [0, 1] else None,
-											lambda rval: (rval & 0x1000) >> 12),
-	('hysteresis',		REG_OSC_TRIGCTL,	lambda s, old: (old & ~0xFFFF0000) | s << 16 if 0 <= s < 2**16 else None,
-											lambda rval: (rval & 0xFFFF0000) >> 16),
-	('trigger_level',	REG_OSC_TRIGLVL,	lambda s, old: _sgn(s, 32),
-											lambda rval: rval),
-	('loopback_mode',	REG_OSC_ACTL,		lambda m, old: (old & ~0x01) | m if m in [_OSC_LB_CLIP, _OSC_LB_ROUND] else None,
-											lambda rval: rval & 0x01),
-	('ain_mode',		REG_OSC_ACTL,		lambda m, old: (old & ~0x30000) | (m << 16) if m in [_OSC_AIN_DDS, _OSC_AIN_DECI] else None,
-											lambda rval: (rval & 0x30000) >> 16),
-	('decimation_rate',	REG_OSC_DECIMATION,	lambda r, old: _usgn(r, 32), lambda rval: rval),
-]
-_instrument._attach_register_handlers(_osc_reg_hdl, Oscilloscope)
+_osc_reg_handlers = {
+	'source_ch1':		(REG_OSC_OUTSEL,	to_reg_unsigned(0, 1, allow_set=[OSC_SOURCE_ADC, OSC_SOURCE_DAC]),
+											from_reg_unsigned(0, 1)),
+
+	'source_ch2':		(REG_OSC_OUTSEL,	to_reg_unsigned(1, 1, allow_set=[OSC_SOURCE_ADC, OSC_SOURCE_DAC]),
+											from_reg_unsigned(1, 1)),
+
+	'trig_mode':		(REG_OSC_TRIGMODE,	to_reg_unsigned(0, 2, allow_set=[OSC_TRIG_AUTO, OSC_TRIG_NORMAL, OSC_TRIG_SINGLE]),
+											from_reg_unsigned(0, 2)),
+
+	'trig_edge':		(REG_OSC_TRIGCTL,	to_reg_unsigned(0, 2, allow_set=[OSC_EDGE_RISING, OSC_EDGE_FALLING, OSC_EDGE_BOTH]),
+											from_reg_unsigned(0, 2)),
+
+	'trig_ch':			(REG_OSC_TRIGCTL,	to_reg_unsigned(4, 6, allow_set=[OSC_TRIG_CH1, OSC_TRIG_CH2, OSC_TRIG_DA1, OSC_TRIG_DA2]),
+											from_reg_unsigned(4, 6)),
+
+	'hf_reject':		(REG_OSC_TRIGCTL,	to_reg_bool(12),			from_reg_bool(12)),
+	'hysteresis':		(REG_OSC_TRIGCTL,	to_reg_unsigned(16, 16),	from_reg_unsigned(16, 16)),
+	'trigger_level':	(REG_OSC_TRIGLVL,	to_reg_signed(0, 32),		to_reg_signed(0, 32)),
+
+	'loopback_mode_ch1':	(REG_OSC_ACTL,	to_reg_unsigned(0, 1, allow_set=[_OSC_LB_CLIP, _OSC_LB_ROUND]),
+											from_reg_unsigned(0, 1)),
+	'loopback_mode_ch2':	(REG_OSC_ACTL,	to_reg_unsigned(1, 1, allow_set=[_OSC_LB_CLIP, _OSC_LB_ROUND]),
+											from_reg_unsigned(1, 1)),
+
+	'ain_mode':			(REG_OSC_ACTL,		to_reg_unsigned(2, 16, allow_set=[_OSC_AIN_DDS, _OSC_AIN_DECI]),
+											from_reg_unsigned(2, 16)),
+
+	'decimation_rate':	(REG_OSC_DECIMATION,to_reg_unsigned(0, 32),	from_reg_unsigned(0, 32)),
+}

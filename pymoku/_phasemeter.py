@@ -49,6 +49,10 @@ _PM_SG_FREQSCALE = _PM_FREQSCALE
 
 class PhaseMeter_SignalGenerator(MokuInstrument):
 
+	def __init__(self):
+		super(PhaseMeter_SignalGenerator, self).__init__()
+		self._register_accessors(_pm_siggen_reg_hdl)
+
 	def set_defaults(self):
 		self.pm_out1_enable = False
 		self.pm_out1_frequency = 0
@@ -66,22 +70,20 @@ class PhaseMeter_SignalGenerator(MokuInstrument):
 			self.pm_out2_amplitude = amplitude
 			self.pm_out2_frequency = frequency
 
-_pm_siggen_reg_hdl = [
-	('pm_out1_enable',		REG_PM_SG_EN,	lambda s, old: (old & ~1) | int(s) if int(s) in [0, 1] else None,
+_pm_siggen_reg_hdl = {
+	'pm_out1_enable':		(REG_PM_SG_EN,	lambda s, old: (old & ~1) | int(s) if int(s) in [0, 1] else None,
 											lambda rval: rval & 1),
-	('pm_out2_enable',		REG_PM_SG_EN,	lambda s, old: (old & ~2) | int(s) << 1 if int(s) in [0, 1] else None,
+	'pm_out2_enable':		(REG_PM_SG_EN,	lambda s, old: (old & ~2) | int(s) << 1 if int(s) in [0, 1] else None,
 											lambda rval: (rval & 2) >> 1),
-	('pm_out1_frequency',	(REG_PM_SG_FREQ1_H, REG_PM_SG_FREQ1_L),
+	'pm_out1_frequency':	((REG_PM_SG_FREQ1_H, REG_PM_SG_FREQ1_L),
 											lambda f, old: ((old[0] & 0xFFFF0000) | _usgn(f * _PM_SG_FREQSCALE, 48) >> 32, _usgn(f * _PM_SG_FREQSCALE, 48) & 0xFFFFFFFF),
 											lambda rval: (rval[0] << 32 | rval[1])/_PM_SG_FREQSCALE),
-	('pm_out2_frequency',	(REG_PM_SG_FREQ2_H, REG_PM_SG_FREQ2_L),
+	'pm_out2_frequency':	((REG_PM_SG_FREQ2_H, REG_PM_SG_FREQ2_L),
 											lambda f, old: ((old[0] & 0xFFFF0000) | _usgn(f * _PM_SG_FREQSCALE, 48) >> 32, _usgn(f * _PM_SG_FREQSCALE, 48) & 0xFFFFFFFF),
 											lambda rval: (rval[0] << 32 | rval[1])/_PM_SG_FREQSCALE),
-	('pm_out1_amplitude',	REG_PM_SG_AMP, lambda a, old: (old & 0xFFFF0000) | _usgn(_PM_SG_AMPSCALE * a, 16), lambda rval: (rval/_PM_SG_AMPSCALE) & 0x0000FFFF),
-	('pm_out2_amplitude',	REG_PM_SG_AMP, lambda a, old: (old & 0x0000FFFF) | _usgn(_PM_SG_AMPSCALE * a, 16) << 16, lambda rval: ((rval/_PM_SG_AMPSCALE) & 0xFFFF0000) >> 16)
-]
-# Define all PM-registers we care about
-_instrument._attach_register_handlers(_pm_siggen_reg_hdl, PhaseMeter_SignalGenerator)
+	'pm_out1_amplitude':	(REG_PM_SG_AMP, lambda a, old: (old & 0xFFFF0000) | _usgn(_PM_SG_AMPSCALE * a, 16), lambda rval: (rval/_PM_SG_AMPSCALE) & 0x0000FFFF),
+	'pm_out2_amplitude':	(REG_PM_SG_AMP, lambda a, old: (old & 0x0000FFFF) | _usgn(_PM_SG_AMPSCALE * a, 16) << 16, lambda rval: ((rval/_PM_SG_AMPSCALE) & 0xFFFF0000) >> 16)
+}
 
 
 class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenerator): #TODO Frame instrument may not be appropriate when we get streaming going.
@@ -108,6 +110,21 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		Name of this instrument.
 
 	"""
+
+	def __init__(self):
+		"""Create a new PhaseMeter instrument, ready to be attached to a Moku."""
+		super(PhaseMeter, self).__init__(None)
+		self._register_accessors(_pm_reg_handlers)
+		
+		self.id = 3
+		self.type = "phasemeter"
+		self.logname = "MokuPhaseMeterData"
+
+		self.binstr = "<p32,0xAAAAAAAA:p32,0x55555555:s32:s32:s48:s48:s32"
+		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0)),
+						"*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0))]
+
+
 	def _intToCycles(self, rawValue):
 	    return 2.0 * pow(2.0, 16.0) * rawValue / pow(2.0, 48.0) * _PM_ADC_SMPS / _PM_UPDATE_RATE
 	
@@ -244,6 +261,9 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		self.set_frontend(1, fiftyr=True, atten=True, ac=True)
 		self.set_frontend(2, fiftyr=True, atten=True, ac=True)
 
+		self.en_in_ch1 = True
+		self.en_in_ch2 = True
+
 	def datalogger_start(self, start, duration, use_sd, ch1, ch2, filetype):
 		self._update_datalogger_params(ch1, ch2)
 		super(PhaseMeter, self).datalogger_start(start=start, duration=duration, use_sd=use_sd, ch1=ch1, ch2=ch2, filetype=filetype)
@@ -252,33 +272,21 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		self._update_datalogger_params(ch1, ch2)
 		super(PhaseMeter, self).datalogger_start_single(use_sd=use_sd, ch1=ch1, ch2=ch2, filetype=filetype)
 
-	def __init__(self):
-		"""Create a new PhaseMeter instrument, ready to be attached to a Moku."""
-		super(PhaseMeter, self).__init__(None)
-		self.id = 3
-		self.type = "phasemeter"
-		self.logname = "MokuPhaseMeterData"
-
-		self.binstr = "<p32,0xAAAAAAAA:p32,0x55555555:s32:s32:s48:s48:s32"
-		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0)),
-						"*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0))]
-
-_pm_reg_hdl = [
-	('init_freq_ch1',		(REG_PM_INITF1_H, REG_PM_INITF1_L),
+_pm_reg_handlers = {
+	'init_freq_ch1':		((REG_PM_INITF1_H, REG_PM_INITF1_L),
 											lambda f, old: ((_usgn(f * _PM_FREQSCALE, 48) >> 32) & 0xFFFF, _usgn(f * _PM_FREQSCALE, 48) & 0xFFFFFFFF),
 											lambda rval: ((rval[0] << 32) | rval[1]) / _PM_FREQSCALE),
-	('init_freq_ch2',		(REG_PM_INITF2_H, REG_PM_INITF2_L),
+	'init_freq_ch2':		((REG_PM_INITF2_H, REG_PM_INITF2_L),
 											lambda f, old: ((_usgn(f * _PM_FREQSCALE, 48) >> 32) & 0xFFFF, _usgn(f * _PM_FREQSCALE, 48) & 0xFFFFFFFF),
 											lambda rval: ((rval[0] << 32) | rval[1]) / _PM_FREQSCALE),
-	('control_gain',		REG_PM_CGAIN,	lambda f, old: _sgn(f, 12) | (old & ~0xFFF),
+	'control_gain':			(REG_PM_CGAIN,	lambda f, old: _sgn(f, 12) | (old & ~0xFFF),
 											lambda rval: _upsgn(rval & 0xFFF, 12)),
-	('control_shift',		REG_PM_CGAIN,	lambda f, old: (_usgn(f, 4) << 20) | (old & ~0xF00000),
+	'control_shift':		(REG_PM_CGAIN,	lambda f, old: (_usgn(f, 4) << 20) | (old & ~0xF00000),
 											lambda rval: (rval >> 20) & 0xF),
-	('integrator_shift',	REG_PM_INTSHIFT,lambda f, old: (_usgn(f, 4) << 16) | (old & ~0xF0000),
+	'integrator_shift':		(REG_PM_INTSHIFT,lambda f, old: (_usgn(f, 4) << 16) | (old & ~0xF0000),
 											lambda rval: (rval >> 16) & 0xF),
-	('output_decimation',	REG_PM_OUTDEC,	lambda f, old: _usgn(f, 17) | (old & ~0x1FFFF),
+	'output_decimation':	(REG_PM_OUTDEC,	lambda f, old: _usgn(f, 17) | (old & ~0x1FFFF),
 											lambda rval: rval & 0x1FFFF),
-	('output_shift',		REG_PM_OUTSHIFT,lambda f, old: (_usgn(f, 5) << 17) | (old & ~0x3E0000),
+	'output_shift':			(REG_PM_OUTSHIFT,lambda f, old: (_usgn(f, 5) << 17) | (old & ~0x3E0000),
 											lambda rval: (rval >> 17) & 0x1F),
-]
-_instrument._attach_register_handlers(_pm_reg_hdl, PhaseMeter)
+}

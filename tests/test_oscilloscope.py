@@ -14,7 +14,7 @@ class Test_Siggen:
 	@pytest.mark.parametrize("ch, amp, freq, offset", [
 		(1, 1.0, 1000, 0),
 		])
-	def test_sinewave(self, base_instr, ch, amp, freq, offset):
+	def test_sinewave_amplitude(self, base_instr, ch, amp, freq, offset):
 		# Generate an output sinewave and loop to input
 		# Ensure the amplitude is right
 		# Ensure the frequency seems correct as well
@@ -22,7 +22,7 @@ class Test_Siggen:
 		base_instr.synth_sinewave(ch,amp,freq,offset)
 		base_instr.commit()
 
-		# Get a few frames and test them
+		# Get a few frames and test that the max amplitudes of the generated signals are within bounds
 		for n in range(10):
 			frame = i.get_frame(timeout=5)
 			maxval = max(frame)
@@ -30,6 +30,13 @@ class Test_Siggen:
 			print "Min: %.2f, Max: %.2f" % (minval, maxval)
 			assert in_bounds(maxval, amp+offset, 0.03)
 			assert in_bounds(minval, (-1*amp + offset), 0.03)
+
+	def test_sinewave_frequency(self, base_instr, freq):
+		# Depending on the input frequency, check that regularly spaced values are approximately the same amplitude (5%)
+
+
+	def test_squarewave_amplitude(self, base_instr)
+
 
 class Test_Trigger:
 	'''
@@ -56,7 +63,7 @@ class Test_Trigger:
 
 		for n in range(10):
 			frame = i.get_frame(timeout=5)
-			print "Start of frame value: %.2f)" % (frame.ch1[0])
+			print "Start of frame value: %.2f" % (frame.ch1[0])
 			assert in_bounds(frame.ch1[0], amp, allowable_error)
 
 		assert 0

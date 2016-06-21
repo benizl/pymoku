@@ -2,9 +2,34 @@ import pytest
 from pymoku import Moku
 from pymoku.instruments import *
 import conftest
+import numpy
 
 def in_bounds(v, center, err):
 	return abs(v - center) < abs(err)
+
+class Test_Siggen:
+	'''
+		Test the generated output waveforms are as expected
+	'''
+	@pytest.mark.parametrize("ch, amp, freq, offset", [
+		(1, 1.0, 1000, 0),
+		])
+	def test_sinewave(self, base_instr, ch, amp, freq, offset):
+		# Generate an output sinewave and loop to input
+		# Ensure the amplitude is right
+		# Ensure the frequency seems correct as well
+		base_instr.set_source(ch,OSC_SOURCE_DAC)
+		base_instr.synth_sinewave(ch,amp,freq,offset)
+		base_instr.commit()
+
+		# Get a few frames and test them
+		for n in range(10):
+			frame = i.get_frame(timeout=5)
+			maxval = max(frame)
+			minval = min(frame)
+			print "Min: %.2f, Max: %.2f" % (minval, maxval)
+			assert in_bounds(maxval, amp+offset, 0.03)
+			assert in_bounds(minval, (-1*amp + offset), 0.03)
 
 class Test_Trigger:
 	'''

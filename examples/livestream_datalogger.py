@@ -19,7 +19,7 @@ try:
 
 	i.datalogger_stop()
 
-	i.datalogger_start(start=0, duration=10, filetype='net')
+	i.datalogger_start(start=0, duration=100, use_sd=False, ch1=True, ch2=False, filetype='net')
 
 	while True:
 		ch, idx, d = i.datalogger_get_samples(timeout=5)

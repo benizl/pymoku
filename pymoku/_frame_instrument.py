@@ -253,7 +253,18 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if start:
 			raise InvalidOperationException("Logging start time parameter currently not supported")
 
-		maxrates = { 'bin' : 10000, 'csv' : 1000, 'net' : 100, 'plot' : 10}
+		# Logging rates depend on which storage medium, and the filetype as well
+		if(ch1 and ch2):
+			if(use_sd):
+				maxrates = { 'bin' : 150e3, 'csv' : 1e3, 'net' : 20e3, 'plot' : 10}
+			else:
+				maxrates = { 'bin' : 1e6, 'csv' : 1e3, 'net' : 20e3, 'plot' : 10}
+		else:
+			if(use_sd):
+				maxrates = { 'bin' : 250e3, 'csv' : 3e3, 'net' : 40e3, 'plot' : 10}
+			else:
+				maxrates = { 'bin' : 1e6, 'csv' : 3e3, 'net' : 40e3, 'plot' : 10}
+
 		if 1 / self.timestep > maxrates[filetype]:
 			raise InvalidOperationException("Sample Rate %d too high for file type %s" % (1 / self.timestep, filetype))
 

@@ -567,7 +567,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 			log.exception("HB")
 
 	def _frame_worker(self):
-		if(self.frame_class):
+		if(getattr(self, 'frame_class', None)):
 			ctx = zmq.Context.instance()
 			skt = ctx.socket(zmq.SUB)
 			skt.connect("tcp://%s:27185" % self._moku._ip)

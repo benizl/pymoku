@@ -19,6 +19,11 @@ class Test_Siggen:
 		# Ensure the amplitude is right
 		# Ensure the frequency seems correct as well
 		base_instr.set_source(ch,OSC_SOURCE_DAC)
+		if(ch==1):
+			base_instr.set_trigger(OSC_TRIG_DA1, OSC_EDGE_RISING, 0)
+		else:
+			base_instr.set_trigger(OSC_TRIG_DA2, OSC_EDGE_RISING, 0)
+			
 		base_instr.synth_sinewave(ch,amp,freq,offset)
 		base_instr.commit()
 

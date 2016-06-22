@@ -616,9 +616,6 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 	def attach_moku(self, moku):
 		super(SpecAn, self).attach_moku(moku)
 
-		# The moku contains calibration data for various configurations
-		self.calibration = dict(self._moku._get_property_section("calibration"))
-
 	attach_moku.__doc__ = MokuInstrument.attach_moku.__doc__
 
 _sa_reg_handlers = {

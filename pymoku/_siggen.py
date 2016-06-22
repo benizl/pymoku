@@ -60,7 +60,7 @@ SG_MODSOURCE_DAC	= 2
 _SG_FREQSCALE		= 1e9 / 2**48
 _SG_PHASESCALE		= 1.0 / (2**32 - 1)
 _SG_RISESCALE		= 1e9 / 2**48
-_SG_AMPSCALE		= 4.0 / 2**16
+_SG_AMPSCALE		= 4.0 / (2**15 - 1)
 _SG_DEPTHSCALE		= 1.0 / 2**15
 _SG_MAX_RISE		= 1e9 - 1
 
@@ -94,6 +94,15 @@ class SignalGenerator(MokuInstrument):
 		self.id = 4
 		self.type = "signal_generator"
 
+	def _get_calibration(self):
+		dac1 = "calibration.DG-1"
+		dac2 = "calibration.DG-2"
+		scale1 = self.calibration[dac1] # Convert to Vpp
+		scale2 = self.calibration[dac2] # Convert to Vpp
+		self.scale1 = scale1
+		self.scale2 = scale2
+		return (float(scale1), float(scale2))
+
 	def set_defaults(self):
 		""" Set sane defaults.
 		Defaults are outputs off, amplitudes and frequencies zero."""
@@ -123,18 +132,21 @@ class SignalGenerator(MokuInstrument):
 
 		:type offset: float, volts
 		:param offset: DC offset applied to the waveform"""
+		scale1, scale2 = self._get_calibration()
+		print scale1, scale2
+
 		if ch == 1:
 			self.out1_waveform = SG_WAVE_SINE
 			self.out1_enable = True
-			self.out1_amplitude = amplitude
+			self.out1_amplitude = scale1 * amplitude
 			self.out1_frequency = frequency
-			self.out1_offset = offset
+			self.out1_offset = scale1 * offset
 		elif ch == 2:
 			self.out2_waveform = SG_WAVE_SINE
 			self.out2_enable = True
-			self.out2_amplitude = amplitude
+			self.out2_amplitude = scale2 * amplitude
 			self.out2_frequency = frequency
-			self.out2_offset = offset
+			self.out2_offset = scale2 * offset
 		else:
 			raise ValueOutOfRangeException("Invalid Channel")
 
@@ -148,7 +160,7 @@ class SignalGenerator(MokuInstrument):
 		:param amplitude: Waveform peak-to-peak amplitude
 
 		:type frequency: float
-		:param frequency: Freqency of the wave
+		:param frequency: Frequency of the wave
 
 		:type offset: float, volts
 		:param offset: DC offset applied to the waveform
@@ -167,12 +179,16 @@ class SignalGenerator(MokuInstrument):
 		elif duty + falltime > 1:
 			raise ValueOutOfRangeException("Duty and fall time too big")
 
+		scale1, scale2 = self._get_calibration()
+		print "First: ", scale1
+		print "Second: ", scale2
+
 		if ch == 1:
 			self.out1_waveform = SG_WAVE_SQUARE
 			self.out1_enable = True
-			self.out1_amplitude = amplitude
+			self.out1_amplitude = scale1 * amplitude
 			self.out1_frequency = frequency
-			self.out1_offset = offset
+			self.out1_offset = scale1 * offset
 			self.out1_clipsine = False # TODO: Should switch to clip depending on freq or user
 
 			# This is overdefined, but saves the FPGA doing a tricky division
@@ -184,9 +200,9 @@ class SignalGenerator(MokuInstrument):
 		elif ch == 2:
 			self.out2_waveform = SG_WAVE_SQUARE
 			self.out2_enable = True
-			self.out2_amplitude = amplitude
+			self.out2_amplitude = scale2 * amplitude
 			self.out2_frequency = frequency
-			self.out2_offset = offset
+			self.out2_offset = scale2 * offset
 			self.out2_clipsine = False
 			self.out2_t0 = risetime
 			self.out2_t1 = duty
@@ -273,11 +289,11 @@ _siggen_reg_handlers = {
 											to_reg_unsigned(0, 48, xform=lambda f:f / _SG_FREQSCALE),
 											from_reg_unsigned(0, 48, xform=lambda f: f * _SG_FREQSCALE)),
 
-	'out1_offset':		(REG_SG_MODF1_H,	to_reg_signed(0, 16, xform=lambda o:o / _SG_AMPSCALE),
-											from_reg_signed(0, 16, xform=lambda o: o * _SG_AMPSCALE)),
+	'out1_offset':		(REG_SG_MODF1_H,	to_reg_signed(0, 16, xform=lambda o:o),
+											from_reg_signed(0, 16, xform=lambda o: o)),
 
-	'out2_offset':		(REG_SG_MODF2_H,	to_reg_signed(0, 16, xform=lambda o:o / _SG_AMPSCALE),
-											from_reg_signed(0, 16, xform=lambda o: o * _SG_AMPSCALE)),
+	'out2_offset':		(REG_SG_MODF2_H,	to_reg_signed(0, 16, xform=lambda o:o),
+											from_reg_signed(0, 16, xform=lambda o: o)),
 
 	'out1_phase':		(REG_SG_PHASE1,		to_reg_unsigned(0, 32, xform=lambda p:p / _SG_PHASESCALE),
 											from_reg_unsigned(0, 32, xform=lambda p:p * _SG_PHASESCALE)),
@@ -285,11 +301,11 @@ _siggen_reg_handlers = {
 	'out2_phase':		(REG_SG_PHASE2,		to_reg_unsigned(0, 32, xform=lambda p:p / _SG_PHASESCALE),
 											from_reg_unsigned(0, 32, xform=lambda p:p * _SG_PHASESCALE)),
 
-	'out1_amplitude':	(REG_SG_AMP1,		to_reg_unsigned(0, 32, xform=lambda p:p / _SG_AMPSCALE),
-											from_reg_unsigned(0, 32, xform=lambda p:p * _SG_AMPSCALE)),
+	'out1_amplitude':	(REG_SG_AMP1,		to_reg_signed(0, 16, xform=lambda p:p),
+											from_reg_signed(0, 16, xform=lambda p:p)),
 
-	'out2_amplitude':	(REG_SG_AMP2,		to_reg_unsigned(0, 32, xform=lambda p:p / _SG_AMPSCALE),
-											from_reg_unsigned(0, 32, xform=lambda p:p * _SG_AMPSCALE)),
+	'out2_amplitude':	(REG_SG_AMP2,		to_reg_signed(0, 16, xform=lambda p:p),
+											from_reg_signed(0, 16, xform=lambda p:p)),
 
 	'mod1_frequency':	((REG_SG_MODF1_H, REG_SG_MODF1_L),
 											lambda f, old: ((old[0] & 0x0000FFFF) | (_usgn(f/_SG_FREQSCALE, 48) >> 16) & 0xFFFF0000, _usgn(f/_SG_FREQSCALE, 48) & 0xFFFFFFFF),
@@ -345,9 +361,9 @@ _siggen_reg_handlers = {
 	'out2_modsource':	(REG_SG_MODSOURCE,	to_reg_unsigned(3, 2, allow_set=[SG_MODSOURCE_INT, SG_MODSOURCE_ADC, SG_MODSOURCE_DAC]),
 											from_reg_unsigned(3, 2)),
 
-	'out1_amp_pc':		(REG_SG_PRECLIP,	to_reg_unsigned(0, 16, xform=lambda a: a / _SG_AMPSCALE),
-											from_reg_unsigned(0, 16, xform=lambda a: a * _SG_AMPSCALE)),
+	'out1_amp_pc':		(REG_SG_PRECLIP,	to_reg_unsigned(0, 16, xform=lambda a: a),
+											from_reg_unsigned(0, 16, xform=lambda a: a)),
 
-	'out2_amp_pc':		(REG_SG_PRECLIP,	to_reg_unsigned(16, 16, xform=lambda a: a / _SG_AMPSCALE),
-											from_reg_unsigned(16, 16, xform=lambda a: a * _SG_AMPSCALE)),
+	'out2_amp_pc':		(REG_SG_PRECLIP,	to_reg_unsigned(16, 16, xform=lambda a: a),
+											from_reg_unsigned(16, 16, xform=lambda a: a)),
 }

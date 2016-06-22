@@ -97,10 +97,8 @@ class SignalGenerator(MokuInstrument):
 	def _get_calibration(self):
 		dac1 = "calibration.DG-1"
 		dac2 = "calibration.DG-2"
-		scale1 = self.calibration[dac1] # Convert to Vpp
-		scale2 = self.calibration[dac2] # Convert to Vpp
-		self.scale1 = scale1
-		self.scale2 = scale2
+		scale1 = self.calibration[dac1]
+		scale2 = self.calibration[dac2]
 		return (float(scale1), float(scale2))
 
 	def set_defaults(self):
@@ -132,8 +130,8 @@ class SignalGenerator(MokuInstrument):
 
 		:type offset: float, volts
 		:param offset: DC offset applied to the waveform"""
+
 		scale1, scale2 = self._get_calibration()
-		print scale1, scale2
 
 		if ch == 1:
 			self.out1_waveform = SG_WAVE_SINE
@@ -180,8 +178,6 @@ class SignalGenerator(MokuInstrument):
 			raise ValueOutOfRangeException("Duty and fall time too big")
 
 		scale1, scale2 = self._get_calibration()
-		print "First: ", scale1
-		print "Second: ", scale2
 
 		if ch == 1:
 			self.out1_waveform = SG_WAVE_SQUARE

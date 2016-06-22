@@ -92,29 +92,22 @@ class VoltsFrame(_frame_instrument.DataFrame):
 
 		g1, g2, d1, d2, s1, s2, l1, l2 = self.scales[self.stateid]
 
-		# Change scales depending on the source
-		if (s1 == OSC_SOURCE_ADC):
-			scale1 = g1
-		elif (s1 == OSC_SOURCE_DAC):
-			if(l1 == _OSC_LB_CLIP):
-				scale1 = d1 
+		def _compute_scaling_factor(adc,dac,src,lmode):
+			# Change scaling factor depending on the source type
+			if (src == OSC_SOURCE_ADC):
+				scale = adc
+			elif (src == OSC_SOURCE_DAC):
+				if(lmode == _OSC_LB_CLIP):
+					scale = dac 
+				else: # Rounding mode
+					scale = dac * 16
 			else:
-				scale1 = d1 * 16
-		else:
-			log.error("Invalid source on Channel 1.")
-			return
+				log.error("Invalid source type on channel.")
+				return
+			return scale
 
-		# Change scales depending on the source
-		if (s2 == OSC_SOURCE_ADC):
-			scale2 = g2
-		elif (s2 == OSC_SOURCE_DAC):
-			if(l2 == _OSC_LB_CLIP):
-				scale2 = d2
-			else:
-				scale2 = d2 * 16
-		else:
-			log.error("Invalid source on Channel 2.")
-			return
+		scale1 = _compute_scaling_factor(g1,d1,s1,l1)
+		scale2 = _compute_scaling_factor(g2,d2,s2,l2)
 
 		try:
 			smpls = int(len(self.raw1) / 4)

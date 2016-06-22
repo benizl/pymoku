@@ -11,10 +11,12 @@ class Test_Siggen:
 	'''
 		Test the generated output waveforms are as expected
 	'''
-	@pytest.mark.parametrize("ch, amp, freq, offset", [
-		(1, 1.0, 1000, 0),
+	@pytest.mark.parametrize("ch, vpp, freq, offset", [
+		(1, 1.0, 3.0, 0),
+		(1, 0.5, 10.0, 0),
+		(1, 0.5, 10.0, 0.3),
 		])
-	def test_sinewave_amplitude(self, base_instr, ch, amp, freq, offset):
+	def test_sinewave_amplitude(self, base_instr, ch, vpp, freq, offset):
 		# Generate an output sinewave and loop to input
 		# Ensure the amplitude is right
 		# Ensure the frequency seems correct as well
@@ -23,27 +25,33 @@ class Test_Siggen:
 			base_instr.set_trigger(OSC_TRIG_DA1, OSC_EDGE_RISING, 0)
 		else:
 			base_instr.set_trigger(OSC_TRIG_DA2, OSC_EDGE_RISING, 0)
-			
-		base_instr.synth_sinewave(ch,amp,freq,offset)
+
+		base_instr.synth_sinewave(ch,vpp,freq,offset)
+		# Set a decent timebase that contains multiple cycles of the wave
+		# base_instr.set_timebase()
+
 		base_instr.commit()
 
 		# Get a few frames and test that the max amplitudes of the generated signals are within bounds
 		for n in range(10):
-			frame = i.get_frame(timeout=5)
-			maxval = max(frame)
-			minval = min(frame)
-			print "Min: %.2f, Max: %.2f" % (minval, maxval)
-			assert in_bounds(maxval, amp+offset, 0.03)
-			assert in_bounds(minval, (-1*amp + offset), 0.03)
+			frame = base_instr.get_frame(timeout=5)
+			if(ch==1):
+				maxval = max(x for x in frame.ch1 if x is not None)
+				minval = min(x for x in frame.ch1 if x is not None)
+			else:
+				maxval = max(x for x in frame.ch2 if x is not None)
+				minval = min(x for x in frame.ch2 if x is not None)
+			assert in_bounds(maxval, (vpp/2.0)+offset, 0.03)
+			assert in_bounds(minval, (-1*(vpp/2.0) + offset), 0.03)
 
-	def test_sinewave_frequency(self, base_instr, freq):
-		# Depending on the input frequency, check that regularly spaced values are approximately the same amplitude (5%)
+	#def test_sinewave_frequency(self, base_instr, freq):
+	# Depending on the input frequency, check that regularly spaced values are approximately the same amplitude (5%)
 
 
-	def test_squarewave_amplitude(self, base_instr)
+	#def test_squarewave_amplitude(self, base_instr)
 
 
-class Test_Trigger:
+class Tes2_Trigger:
 	'''
 		We want this class to test everything around triggering settings for the oscilloscope
 	'''
@@ -80,14 +88,14 @@ class Test_Trigger:
 		assert 1 == 1
 
 
-class Test_Timebase:
+class Tes2_Timebase:
 	'''
 		Ensure the timebase is correct
 	'''
 
 
 
-class Test_Source:
+class Tes2_Source:
 	'''
 		Ensure the source is set and rendered as expected
 	'''

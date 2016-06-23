@@ -188,6 +188,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 	def _buffer_offset(self, t1, t2, decimation):
 		# Based on mercury_ipad/LISettings::OSCalculateOptimalBufferOffset
+		# Compute the number of pre-trigger samples to keep in the buffer
 		# TODO: Roll mode
 
 		buffer_smps = _OSC_ADC_SMPS / decimation
@@ -198,17 +199,30 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 	def _render_downsample(self, t1, t2, decimation):
 		# Based on mercury_ipad/LISettings::OSCalculateRenderDownsamplingForDecimation
+		# Incoming data rate of channel buffer
 		buffer_smps = _OSC_ADC_SMPS / decimation
+
+		# The timebase/zoom must not require more than the max ADC sampling rate 
+		# based on 1024 point frame
 		screen_smps = min(_OSC_SCREEN_WIDTH / abs(t1 - t2), _OSC_ADC_SMPS)
 
+		# Render downsample up to 16 (zooming)
 		return round(min(max(buffer_smps / screen_smps, 1.0), 16.0))
+
+
+	def _get_buffer_timespan(self, decimation, buffer_offset):
+		buffer_smps = _OSC_ADC_SMPS / decimation
+		trig_in_buf = 4 * buffer_offset
+		time_buff_start = -trig_in_buf / buffer_smps
+		time_buff_end = time_buff_start + (_OSC_BUFLEN - 1) / buffer_smps
+		return (time_buff_start, time_buff_end)
 
 	def _render_offset(self, t1, t2, decimation, buffer_offset, render_decimation):
 		# Based on mercury_ipad/LISettings::OSCalculateFrameOffsetForDecimation
 		buffer_smps = _OSC_ADC_SMPS / decimation
-		trig_in_buf = 4 * buffer_offset # TODO: Roll Mode
-		time_buff_start = -trig_in_buf / buffer_smps
-		time_buff_end = time_buff_start + (_OSC_BUFLEN - 1) / buffer_smps
+		time_buff_start, time_buff_end = self._get_buffer_timespan(decimation, buffer_offset)
+
+		# TODO: This seems wrong (t1-t2)/2 is right.
 		time_screen_centre = abs(t1 - t2) / 2
 		screen_span = render_decimation / buffer_smps * _OSC_SCREEN_WIDTH
 
@@ -228,6 +242,20 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			return self.decimation_rate
 		else:
 			return self.decimation_rate / 2**10
+
+	def _get_timebase(self, decimation, buffer_offset, render_decimation, render_offset):
+		# Returns start/end time and timestep of the current frames
+		time_buff_start, time_buff_end = self._get_buffer_timespan(decimation, buffer_offset)
+
+		buff_smps = _OSC_ADC_SMPS / decimation
+		buff_ts = 1.0 / buff_smps
+		render_smps = buff_smps/render_decimation
+		render_ts = 1.0 / render_smps
+
+		start_t = time_buff_start + (render_offset * buff_ts)
+		end_t = start_t * _OSC_SCREEN_WIDTH * render_ts
+		print "Start time: %.10f, End Time: %.10f" % (start_t, end_t)
+		return (start_t,end_t)
 
 	def _trigger_level(self, amplitude, source, scales):
 		# An amplitude in volts is scaled to an ADC level depending on the trigger input source 
@@ -293,6 +321,8 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# Set alternates to regular, means we get distorted frames until we get a new trigger
 		self.render_deci_alt = self.render_deci
 		self.offset_alt = self.offset
+
+		self._get_timebase(self.decimation_rate, self.pretrigger, self.render_deci, self.offset)
 
 		log.debug("Render params: Deci %f PT: %f, RDeci: %f, Off: %f", self.decimation_rate, self.pretrigger, self.render_deci, self.offset)
 

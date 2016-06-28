@@ -192,7 +192,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# TODO: Roll mode
 
 		buffer_smps = _OSC_ADC_SMPS / decimation
-		offset_secs = t1
+		offset_secs = -1.0 * t1 # Positive offset is negative time
 		offset = round(min(max(math.ceil(offset_secs * buffer_smps / 4.0), -2**28), 2**12))
 
 		return offset
@@ -212,13 +212,14 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 	def _get_buffer_timespan(self, decimation, buffer_offset):
 		buffer_smps = _OSC_ADC_SMPS / decimation
-		trig_in_buf = 4 * buffer_offset
-		time_buff_start = -trig_in_buf / buffer_smps
+		trig_in_buf = 4 * -buffer_offset
+		time_buff_start = trig_in_buf / buffer_smps
 		time_buff_end = time_buff_start + (_OSC_BUFLEN - 1) / buffer_smps
 		return (time_buff_start, time_buff_end)
 
 	def _render_offset(self, t1, t2, decimation, buffer_offset, render_decimation):
 		# Based on mercury_ipad/LISettings::OSCalculateFrameOffsetForDecimation
+		'''
 		buffer_smps = _OSC_ADC_SMPS / decimation
 		time_buff_start, time_buff_end = self._get_buffer_timespan(decimation, buffer_offset)
 
@@ -229,10 +230,10 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		# Allows for scrolling past the end of the trace
 		time_left = max(min(time_screen_centre - screen_span / 2, time_buff_end - screen_span), time_buff_start)
 
-		return math.ceil(-time_left * buffer_smps)
-
+		return math.ceil(time_left * buffer_smps)
+		'''
 		# For now, only support viewing the whole captured buffer
-		#return buffer_offset * 4
+		return buffer_offset * 4
 
 	def _deci_gain(self):
 		if self.decimation_rate == 0:
@@ -246,14 +247,17 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 	def _get_timebase(self, decimation, buffer_offset, render_decimation, render_offset):
 		# Returns start/end time and timestep of the current frames
 		time_buff_start, time_buff_end = self._get_buffer_timespan(decimation, buffer_offset)
+		print "Buff start: %.2f, Buff end: %.2f" % (time_buff_start, time_buff_end)
 
-		buff_smps = _OSC_ADC_SMPS / decimation
+		buff_smps = _OSC_ADC_SMPS / float(decimation)
 		buff_ts = 1.0 / buff_smps
-		render_smps = buff_smps/render_decimation
+		render_smps = buff_smps/float(render_decimation)
 		render_ts = 1.0 / render_smps
 
-		start_t = time_buff_start + (render_offset * buff_ts)
-		end_t = start_t * _OSC_SCREEN_WIDTH * render_ts
+		print "(Buff_smps, buff_ts, render_smps, render_ts) = (%.10f, %.10f, %.10f, %.10f)" % (buff_smps, buff_ts, render_smps, render_ts)
+
+		start_t = (-render_offset * buff_ts)
+		end_t = start_t + (_OSC_SCREEN_WIDTH - 1)* render_ts
 		print "Start time: %.10f, End Time: %.10f" % (start_t, end_t)
 		return (start_t,end_t)
 
@@ -428,12 +432,12 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.frame_length = _OSC_SCREEN_WIDTH
 
 		self.set_xmode(OSC_FULL_FRAME)
-		self.set_timebase(-0.25, 0.25)
+		self.set_timebase(-1, 1)
 		self.set_precision_mode(False)
 		self.trig_mode = OSC_TRIG_AUTO
 		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
-		self.set_frontend(1)
-		self.set_frontend(2)
+		self.set_frontend(1, fiftyr=True)
+		self.set_frontend(2, fiftyr=True)
 		self.en_in_ch1 = True
 		self.en_in_ch2 = True
 

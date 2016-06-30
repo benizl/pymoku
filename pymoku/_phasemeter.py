@@ -135,9 +135,9 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		self.type = "phasemeter"
 		self.logname = "MokuPhaseMeterData"
 
-		self.binstr = "<p32,0xAAAAAAAA:u48:u48:s48:s16:s48:s32:s32"
-		self.procstr = ["*{:.10e} : *{:.10e} : *{:.10e} : : *C*{:.10e} : *C*{:.10e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0)),
-						"*{:.10e} : *{:.10e} : *{:.10e} : : *C*{:.10e} : *C*{:.10e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0))]
+		self.binstr = "<p32,0xAAAAAAAA:u48:u48:s16:s48:s32:s32"
+		self.procstr = ["*{:.10e} : *{:.10e} : : *{:.10e} : *C*{:.10e} : *C*{:.10e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0)),
+						"*{:.10e} : *{:.10e} : : *{:.10e} : *C*{:.10e} : *C*{:.10e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0))]
 
 
 	def _intToCycles(self, rawValue):

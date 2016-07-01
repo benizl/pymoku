@@ -23,26 +23,21 @@ else:
 
 try:
 	i.set_defaults()
-	i.set_buffer_length(4)
 	i.set_source(1,OSC_SOURCE_ADC)
 	i.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
 	i.synth_sinewave(1,0.5,10,0)
-	i.set_timebase(1.0, 1.1)
-	#i.synth_squarewave(1, 0.5, 10, risetime=0.001, falltime=0.001, duty=0.3)
+	i.set_timebase(1.0, 1.3)
 	i.commit()
-except:
-	m.close()
 
-line1, = plt.plot([])
-line2, = plt.plot([])
-plt.ion()
-plt.show()
-plt.grid(b=True)
-plt.ylim([-10, 10])
-plt.xlim([0,1024])
+	line1, = plt.plot([])
+	line2, = plt.plot([])
+	plt.ion()
+	plt.show()
+	plt.grid(b=True)
+	plt.ylim([-10, 10])
+	plt.xlim([0,1024])
 
-try:
-
+	# Get initial frame to set up plotting parameters
 	frame=i.get_frame()
 
 	ax = plt.gca()

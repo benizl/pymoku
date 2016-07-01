@@ -476,14 +476,17 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		""" Reset the Oscilloscope to sane defaults. """
 		super(Oscilloscope, self).set_defaults()
 		#TODO this should reset ALL registers
+		self.set_source(1,OSC_SOURCE_ADC)
+		self.set_source(2,OSC_SOURCE_ADC)
+		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
+		self.set_precision_mode(False)
+		self.set_timebase(-1, 1)
+
 		self.framerate = _OSC_FPS
 		self.frame_length = _OSC_SCREEN_WIDTH
-
+		self.set_buffer_length(4)
 		self.set_xmode(OSC_FULL_FRAME)
-		self.set_timebase(-1, 1)
-		self.set_precision_mode(False)
-		self.trig_mode = OSC_TRIG_AUTO
-		self.set_trigger(OSC_TRIG_CH1, OSC_EDGE_RISING, 0)
+
 		self.set_frontend(1, fiftyr=True)
 		self.set_frontend(2, fiftyr=True)
 		self.en_in_ch1 = True

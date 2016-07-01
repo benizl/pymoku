@@ -90,7 +90,17 @@ class VoltsFrame(_frame_instrument.DataFrame):
 			log.error("Can't render voltage frame, haven't saved calibration data for state %d", self.stateid)
 			return
 
-		g1, g2, d1, d2, s1, s2, l1, l2 = self.scales[self.stateid]
+		scales = self.scales[self.stateid]
+		g1 = scales['g1']
+		g2 = scales['g2']
+		d1 = scales['d1']
+		d2 = scales['d2']
+		s1 = scales['s1']
+		s2 = scales['s2']
+		l1 = scales['l1']
+		l2 = scales['l2']
+		t1 = scales['t1']
+		t2 = scales['t2']
 
 		def _compute_scaling_factor(adc,dac,src,lmode):
 			# Change scaling factor depending on the source type
@@ -130,6 +140,59 @@ class VoltsFrame(_frame_instrument.DataFrame):
 			self.complete = False
 
 		return True
+
+
+	'''
+		Plotting helper functions
+	'''
+	def _get_timeScale(self, tspan):
+		# Returns a scaling factor and units for time 'T'
+		if(tspan <  1e-6):
+			scale_str = 'ns'
+			scale_const = 1e9
+		elif (tspan < 1e-3):
+			scale_str = 'us'
+			scale_const = 1e6
+		elif (tspan < 1):
+			scale_str = 'ms'
+			scale_const = 1e3
+		else:
+			scale_str = 's'
+			scale_const = 1.0
+
+		return [scale_str,scale_const]
+
+	def _get_xaxis_fmt(self,x,pos):
+		# This function returns a format string for the x-axis ticks and x-coordinates along the time scale
+		# Use this to set an x-axis format during plotting of Oscilloscope frames
+
+		if self.stateid not in self.scales:
+			log.error("Can't get x-axis format, haven't saved calibration data for state %d", self.stateid)
+			return
+
+		scales = self.scales[self.stateid]
+		t1 = scales['t1']
+		t2 = scales['t2']
+		ts = abs(t2 - t1) / _OSC_SCREEN_WIDTH
+		tscale_str, tscale_const = self._get_timeScale(abs(t2-t1))
+
+		return {'xaxis': '%.1f %s' % ((t1 + x*ts)*tscale_const, tscale_str), 'xcoord': '%.3f %s' % ((t1 + x*ts)*tscale_const, tscale_str)}
+
+	def get_xaxis_fmt(self, x, pos):
+		return self._get_xaxis_fmt(x,pos)['xaxis']
+
+	def get_xcoord_fmt(self, x):
+		return self._get_xaxis_fmt(x,None)['xcoord']
+
+	def _get_yaxis_fmt(self,y,pos):
+		return {'yaxis': '%.1f %s' % (y,'V'), 'ycoord': '%.3f %s' % (y,'V')}
+
+	def get_yaxis_fmt(self, y, pos):
+		return self._get_yaxis_fmt(y,pos)['yaxis']
+
+	def get_ycoord_fmt(self, y):
+		return self._get_yaxis_fmt(y,None)['ycoord']
+
 
 class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerator):
 	""" Oscilloscope instrument object. This should be instantiated and attached to a :any:`Moku` instance.
@@ -218,20 +281,6 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		return (time_buff_start, time_buff_end)
 
 	def _render_offset(self, t1, t2, decimation, buffer_offset, render_decimation):
-		# Based on mercury_ipad/LISettings::OSCalculateFrameOffsetForDecimation
-		'''
-		buffer_smps = _OSC_ADC_SMPS / decimation
-		time_buff_start, time_buff_end = self._get_buffer_timespan(decimation, buffer_offset)
-
-		# TODO: This seems wrong (t1-t2)/2 is right.
-		time_screen_centre = abs(t1 - t2) / 2
-		screen_span = render_decimation / buffer_smps * _OSC_SCREEN_WIDTH
-
-		# Allows for scrolling past the end of the trace
-		time_left = max(min(time_screen_centre - screen_span / 2, time_buff_end - screen_span), time_buff_start)
-
-		return math.ceil(time_left * buffer_smps)
-		'''
 		# For now, only support viewing the whole captured buffer
 		return buffer_offset * 4
 
@@ -247,32 +296,28 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 	def _get_timebase(self, decimation, buffer_offset, render_decimation, render_offset):
 		# Returns start/end time and timestep of the current frames
 		time_buff_start, time_buff_end = self._get_buffer_timespan(decimation, buffer_offset)
-		print "Buff start: %.2f, Buff end: %.2f" % (time_buff_start, time_buff_end)
 
 		buff_smps = _OSC_ADC_SMPS / float(decimation)
 		buff_ts = 1.0 / buff_smps
 		render_smps = buff_smps/float(render_decimation)
 		render_ts = 1.0 / render_smps
 
-		print "(Buff_smps, buff_ts, render_smps, render_ts) = (%.10f, %.10f, %.10f, %.10f)" % (buff_smps, buff_ts, render_smps, render_ts)
-
 		start_t = (-render_offset * buff_ts)
 		end_t = start_t + (_OSC_SCREEN_WIDTH - 1)* render_ts
-		print "Start time: %.10f, End Time: %.10f" % (start_t, end_t)
+
 		return (start_t,end_t)
 
 	def _trigger_level(self, amplitude, source, scales):
 		# An amplitude in volts is scaled to an ADC level depending on the trigger input source 
 		# and its current configuration
-		[g1, g2, d1, d2, s1, s2, l1, l2] = scales
 		if (source == OSC_TRIG_CH1):
-			level = amplitude/g1
+			level = amplitude/scales['g1']
 		elif (source == OSC_TRIG_CH2):
-			level = amplitude/g2
+			level = amplitude/scales['g2']
 		elif (source == OSC_TRIG_DA1):
-			level = (amplitude/d1)/16
+			level = (amplitude/scales['d1'])/16
 		elif (source == OSC_TRIG_DA2):
-			level = (amplitude/d2)/16
+			level = (amplitude/scales['d2'])/16
 
 		return level
 
@@ -318,9 +363,9 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 
 	def _set_render(self, t1, t2, decimation):
 		self.render_mode = RDR_CUBIC #TODO: Support other
-		self.pretrigger = self._buffer_offset(t1, t2, self.decimation_rate)
-		self.render_deci = self._render_downsample(t1, t2, self.decimation_rate)
-		self.offset = self._render_offset(t1, t2, self.decimation_rate, self.pretrigger, self.render_deci)
+		self.pretrigger = self._buffer_offset(t1, t2, decimation)
+		self.render_deci = self._render_downsample(t1, t2, decimation)
+		self.offset = self._render_offset(t1, t2, decimation, self.pretrigger, self.render_deci)
 
 		# Set alternates to regular, means we get distorted frames until we get a new trigger
 		self.render_deci_alt = self.render_deci
@@ -342,6 +387,9 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		:type t2: float
 		:param t2: As *t1* but to the right of screen.
 		"""
+		if(t2 <= t1):
+			raise Exception("Timebase must be non-zero, with t1 < t2. Attempted to set t1=%f and t2=%f" % (t1, t2))
+
 		self.decimation_rate = self._optimal_decimation(t1, t2)
 		self._set_render(t1, t2, self.decimation_rate)
 
@@ -458,6 +506,7 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		s2 = self.source_ch2
 		l1 = self.loopback_mode_ch1
 		l2 = self.loopback_mode_ch2
+		t1,t2 = self._get_timebase(self.decimation_rate, self.pretrigger, self.render_deci, self.offset)
 
 		try:
 			g1 = 1 / float(self.calibration[sect1])
@@ -476,12 +525,11 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 			d1 /= self._deci_gain()
 			d2 /= self._deci_gain()
 
-		return (g1, g2, d1, d2, s1, s2, l1, l2)
+		return {'g1':g1, 'g2':g2, 'd1':d1, 'd2':d2, 's1':s1, 's2':s2, 'l1':l1, 'l2':l2, 't1':t1, 't2':t2}
 
 	def _update_dependent_regs(self, scales):
 		# Trigger level must be scaled depending on the current relay settings and chosen trigger source
 		self.trigger_level = self._trigger_level(self.trig_volts, self.trig_ch, scales)
-		print "Set trigger level to: ", self.trigger_level
 		
 	def commit(self):
 		scales = self._calculate_scales()

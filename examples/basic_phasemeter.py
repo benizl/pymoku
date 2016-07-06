@@ -136,7 +136,7 @@ try:
 				#
 
 				# Convert I,Q to amplitude and append to line graph
-				ydata1 = ydata1 + [math.sqrt(s[0]**2 + s[1]**2)]
+				ydata1 = ydata1 + [math.sqrt(s[4]**2 + s[5]**2)]
 
 		elif ch2 & (ch==2):
 			datalen = len(samp)
@@ -147,7 +147,7 @@ try:
 				#
 
 				# Convert I,Q to amplitude and append to line graph
-				ydata2 = ydata2 + [math.sqrt(s[0]**2 + s[1]**2)]
+				ydata2 = ydata2 + [math.sqrt(s[4]**2 + s[5]**2)]
 
 		# Must set lines for each draw loop
 		if ch1:

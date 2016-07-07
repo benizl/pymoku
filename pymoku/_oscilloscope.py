@@ -85,6 +85,9 @@ class VoltsFrame(_frame_instrument.DataFrame):
 
 		self.scales = scales
 
+	def __json__(self):
+		return { 'ch1': self.ch1, 'ch2' : self.ch2 }
+
 	def process_complete(self):
 		if self.stateid not in self.scales:
 			log.error("Can't render voltage frame, haven't saved calibration data for state %d", self.stateid)

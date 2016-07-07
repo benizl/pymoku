@@ -136,9 +136,9 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		self.logname = "MokuPhaseMeterData"
 
 		self.binstr = "<p32,0xAAAAAAAA:u48:u48:s15:p1,0:s48:s32:s32"
-		self.procstr = ["*{:.10e} : *{:.10e} : : *{:.10e} : *C*{:.10e} : *C*{:.10e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0)),
-						"*{:.10e} : *{:.10e} : : *{:.10e} : *C*{:.10e} : *C*{:.10e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0))]
-
+		self.procstr = ["*{:.16e} : *{:.16e} : : *{:.16e} : *C*{:.16e} : *C*{:.16e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0)),
+						"*{:.16e} : *{:.16e} : : *{:.16e} : *C*{:.16e} : *C*{:.16e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0))]
+		print self.procstr
 
 	def _intToCycles(self, rawValue):
 	    return 2.0 * pow(2.0, 16.0) * rawValue / pow(2.0, 48.0) * _PM_ADC_SMPS / _PM_UPDATE_RATE
@@ -248,9 +248,9 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 	def get_fmtstr(self, ch1, ch2):
 		fmtstr = "{t:.10e}"
 		if ch1:
-			fmtstr += ", {ch1[1]:.10e}, {ch1[3]:.10e}, {ch1[4]:.10e}, {ch1[5]:.10e}, {ch1[0]:.10e}, {ch1[2]:.10e}"
+			fmtstr += ", {ch1[1]:.16e}, {ch1[3]:.16e}, {ch1[4]:.16e}, {ch1[5]:.16e}, {ch1[0]:.16e}, {ch1[2]:.16e}"
 		if ch2:
-			fmtstr += ", {ch1[1]:.10e}, {ch1[3]:.10e}, {ch1[4]:.10e}, {ch1[5]:.10e}, {ch1[0]:.10e}, {ch1[2]:.10e}"
+			fmtstr += ", {ch1[1]:.16e}, {ch1[3]:.16e}, {ch1[4]:.16e}, {ch1[5]:.16e}, {ch1[0]:.16e}, {ch1[2]:.16e}"
 		fmtstr += "\r\n"
 		return fmtstr
 

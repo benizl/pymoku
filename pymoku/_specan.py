@@ -165,6 +165,9 @@ class SpectrumFrame(_frame_instrument.DataFrame):
 		#: Obtain all data scaling factors relevant to current SpecAn configuration
 		self.scales = scales
 
+	def __json__(self):
+		return { 'ch1' : self.ch1, 'ch2' : self.ch2, 'fs' : self.fs }
+
 	# convert an RMS voltage to a power level (assuming 50Ohm load)
 	def _vrms_to_dbm(self, v):
 		return 10.0*math.log(v*v/50.0,10) + 30.0

@@ -38,10 +38,6 @@ stop_freq = 250e6
 # END Instrument Configuration
 #################################
 
-# Apply parameter settings to instrument class
-i.set_defaults()
-i.set_buffer_length(4)
-i.framerate = 2
 i.set_dbmscale(dbm)
 i.set_window(windowType)
 i.set_span(start_freq, stop_freq)

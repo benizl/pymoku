@@ -22,7 +22,6 @@ try:
 	# acquire samples. One could also leave the oscilloscope in whatever other X Mode they
 	# wished, pause the acquisition then stream from there to retrieve the full-rate version
 	# of a normal oscilloscope frame.
-	i.set_defaults()
 	i.set_samplerate(10)
 	i.set_xmode(OSC_ROLL)
 	i.commit()

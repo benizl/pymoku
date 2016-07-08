@@ -25,9 +25,6 @@ else:
 	print "Attached to existing Oscilloscope"
 
 try:
-	i.set_defaults()
-	i.commit()
-
 	frame = i.get_frame()
 	print "Plot URL is %s" % ppy.plot_frame(frame, line=linespec)
 

@@ -32,13 +32,6 @@ if i is None or i.type != 'oscilloscope':
 else:
 	print "Attached to existing Oscilloscope"
 
-# It's recommended to set default values for the instrument, otherwise the user
-# has to go ahead and explicitly set up many values themselves.
-i.set_defaults()
-
-# 4 frames in the internal buffer. Introduces minimal latency but prevents frame loss
-i.set_buffer_length(4)
-
 # Channe 1: 1Vp-p Square Wave, 1Hz, 40% duty cycle with 10% slew rate limit on both edges
 i.synth_squarewave(1, 1.0, 1, risetime=0.1, falltime=0.1, duty=0.4)
 

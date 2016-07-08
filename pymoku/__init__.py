@@ -628,11 +628,16 @@ class Moku(object):
 		""":return: True if the Moku currently is connected and has an instrument deployed and operating"""
 		return self._instrument is not None and self._instrument.is_active()
 
-	def attach_instrument(self, instrument):
+	def attach_instrument(self, instrument, set_default=True):
 		"""
 		Attaches a :any:`MokuInstrument` subclass to the Moku, deploying and activating an instrument.
 
-		Either this function or :any:`discover_instrument` must be called before an instrument can be manipulated"""
+		Either this function or :any:`discover_instrument` must be called before an instrument can be manipulated.
+
+		:type instrument: :any:`MokuInstrument` subclass
+		:param instrument: The instrument instance to attach.
+		:type set_default: bool
+		:param set_default: Set the instrument to its default config upon connection, overwriting user changes before this point."""
 		if self._instrument:
 			self._instrument.set_running(False)
 
@@ -643,6 +648,10 @@ class Moku(object):
 		log.debug("Bitstream version %d", bsv)
 		self._instrument.sync_registers()
 		self._instrument.set_running(True)
+
+		if set_default:
+			self._instrument.set_defaults()
+			self._instrument.commit()
 
 	set_instrument = attach_instrument
 	""" alias for :any:`attach_instrument`"""

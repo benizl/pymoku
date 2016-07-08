@@ -37,7 +37,7 @@ _SA_ADC_SMPS		= 500e6
 _SA_BUFLEN			= 2**14
 _SA_SCREEN_WIDTH	= 1024
 _SA_SCREEN_STEPS	= _SA_SCREEN_WIDTH - 1
-_SA_FPS				= 10
+_SA_FPS				= 2
 _SA_FFT_LENGTH		= 8192/2
 _SA_FREQ_SCALE		= 2**32 / _SA_ADC_SMPS
 _SA_INT_VOLTS_SCALE = (1.437*pow(2.0,-8.0))
@@ -319,7 +319,7 @@ class SpecAn(_frame_instrument.FrameBasedInstrument):
 		Hardware Serial Number
 
 	.. attribute:: framerate
-		:annotation: = 10
+		:annotation: = 2
 
 		Frame Rate, range 1 - 30.
 

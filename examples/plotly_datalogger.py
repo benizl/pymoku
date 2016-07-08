@@ -27,7 +27,6 @@ linespec = {
 }
 
 try:
-	i.set_defaults()
 	i.set_samplerate(10)
 	i.set_xmode(OSC_ROLL)
 	i.commit()

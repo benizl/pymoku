@@ -73,7 +73,7 @@ try:
 	i.set_initfreq(2, ch2_freq)
 
 	# The sample rate must be set <=100Hz to avoid data loss so we set it to 10Hz
-	i.set_samplerate(10)
+	i.set_samplerate(PM_LOGRATE_SLOW)
 
 	# Set up signal generator for enabled channels
 	if(ch1_out_enable):

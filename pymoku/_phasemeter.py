@@ -47,6 +47,9 @@ _PM_UPDATE_RATE = 1e6
 _PM_SG_AMPSCALE = 2**16 / 4.0
 _PM_SG_FREQSCALE = _PM_FREQSCALE
 
+PM_LOGRATE_FAST = 200
+PM_LOGRATE_SLOW = 15
+
 class PhaseMeter_SignalGenerator(MokuInstrument):
 
 	def __init__(self):
@@ -165,10 +168,16 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		This interface is most useful for datalogging and similar aquisition where one will not be looking
 		at data frames.
 
-		:type samplerate: float; *0 < samplerate < 200Hz*
-		:param samplerate: Target samples per second. Will get rounded to the nearest allowable unit.
+		:type samplerate: {PM_LOGRATE_SLOW, PM_LOGRATE_FAST}
+		:param samplerate: Choose between ~15Hz or ~120Hz
 		"""
-		self.output_decimation = _PM_UPDATE_RATE / min(max(1,samplerate),200)
+		new_samplerate = _PM_UPDATE_RATE/min(max(1,samplerate),200)
+		shift = min(math.ceil(math.log(new_samplerate,2)),16)
+		self.output_decimation = 2**shift
+		self.output_shift = shift
+
+		print "Output decimation: %f, Shift: %f, Samplerate: %f" % (self.output_decimation, shift, _PM_UPDATE_RATE/self.output_decimation)
+
 
 	def get_samplerate(self):
 		"""

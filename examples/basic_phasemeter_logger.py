@@ -60,6 +60,9 @@ try:
 	# has to go ahead and explicitly set up many values themselves.
 	i.set_defaults()
 
+	i.set_frontend(1,fiftyr=True, atten=False, ac=True)
+	i.set_frontend(2,fiftyr=True, atten=False, ac=True)
+	
 	# The sample rate must be set <=200hz to avoid data loss so we set it to 100Hz
 	i.set_samplerate(samplerate)
 

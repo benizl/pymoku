@@ -18,18 +18,18 @@ linespec = {
 }
 
 if i is None or i.type != 'oscilloscope':
-	print "No or wrong instrument deployed"
+	print("No or wrong instrument deployed")
 	i = Oscilloscope()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Oscilloscope"
+	print("Attached to existing Oscilloscope")
 
 try:
 	i.set_defaults()
 	i.commit()
 
 	frame = i.get_frame()
-	print "Plot URL is %s" % ppy.plot_frame(frame, line=linespec)
+	print("Plot URL is %s" % ppy.plot_frame(frame, line=linespec))
 
 finally:
 	m.close()

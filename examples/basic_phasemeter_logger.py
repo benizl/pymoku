@@ -20,11 +20,11 @@ m = Moku.get_by_name('example')
 i = m.discover_instrument()
 
 if i is None or i.type != 'phasemeter':
-	print "No or wrong instrument deployed. Re-deploying."
+	print("No or wrong instrument deployed. Re-deploying.")
 	i = PhaseMeter()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Phasemeter"
+	print("Attached to existing Phasemeter")
 
 try:
 	######################################################
@@ -81,7 +81,7 @@ try:
 		time.sleep(0.5)
 		trems, treme = i.datalogger_remaining()
 		samples = i.datalogger_samples()
-		print "Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme)
+		print("Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme))
 
 		if i.datalogger_completed():
 			break
@@ -89,12 +89,12 @@ try:
 	e = i.datalogger_error()
 
 	if e:
-		print "Error occured: %s" % e
+		print("Error occured: %s" % e)
 
 	i.datalogger_stop()
 	i.datalogger_upload()
 	
 except Exception as e:
-	print e
+	print(e)
 finally:
 	m.close()

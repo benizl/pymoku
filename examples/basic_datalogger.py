@@ -24,7 +24,7 @@ try:
 		time.sleep(1)
 		trems, treme = i.datalogger_remaining()
 		samples = i.datalogger_samples()
-		print "Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme)
+		print("Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme))
 
 		if i.datalogger_completed():
 			break
@@ -32,11 +32,11 @@ try:
 	e = i.datalogger_error()
 
 	if e:
-		print "Error occured: %s" % e
+		print("Error occured: %s" % e)
 
 	i.datalogger_stop()
 	i.datalogger_upload()
 except Exception as e:
-	print e
+	print(e)
 finally:
 	m.close()

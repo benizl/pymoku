@@ -14,11 +14,11 @@ m = Moku.get_by_name('example')
 i = m.discover_instrument()
 
 if i is None or i.type != 'oscilloscope':
-	print "No or wrong instrument deployed"
+	print("No or wrong instrument deployed")
 	i = Oscilloscope()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Oscilloscope"
+	print("Attached to existing Oscilloscope")
 
 linespec = {
 	'color'	: '(rgb(100,0,0),)',
@@ -39,13 +39,13 @@ try:
 
 	i.datalogger_start(start=10, duration=600, filetype='plot')
 
-	print "Plotly URL is: %s" % pmp.stream_url(m)
+	print("Plotly URL is: %s" % pmp.stream_url(m))
 
 	while True:
 		time.sleep(1)
 		trems, treme = i.datalogger_remaining()
 		samples = i.datalogger_samples()
-		print "Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme)
+		print("Captured (%d samples); %d seconds from start, %d from end" % (samples, trems, treme))
 		# TODO: Symbolic constants
 		if i.datalogger_completed():
 			break
@@ -53,7 +53,7 @@ try:
 	e = i.datalogger_error()
 
 	if e:
-		print "Error occured: %s" % e
+		print("Error occured: %s" % e)
 except Exception:
 	traceback.print_exc()
 finally:

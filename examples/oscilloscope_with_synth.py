@@ -26,11 +26,11 @@ m = Moku.get_by_name('example')
 i = m.discover_instrument()
 
 if i is None or i.type != 'oscilloscope':
-	print "No or wrong instrument deployed"
+	print("No or wrong instrument deployed")
 	i = Oscilloscope()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Oscilloscope"
+	print("Attached to existing Oscilloscope")
 
 # It's recommended to set default values for the instrument, otherwise the user
 # has to go ahead and explicitly set up many values themselves.
@@ -101,7 +101,7 @@ try:
 		# Print FPS values against the current requested value (which is rounded to the
 		# nearest achievable value to the above).
 		if time.time() - last >= 1:
-			print frames, i.framerate
+			print(frames, i.framerate)
 			frames = 0
 			last = time.time()
 finally:

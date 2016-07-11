@@ -86,8 +86,8 @@ try:
 			time.sleep(0.1)
 			continue
 
-		line1.set_data(range(len(frame.ch1)), frame.ch1)
-		line2.set_data(range(len(frame.ch2)), frame.ch2)
+		line1.set_data(list(range(len(frame.ch1))), frame.ch1)
+		line2.set_data(list(range(len(frame.ch2))), frame.ch2)
 
 		plt.pause(0.0001)
 

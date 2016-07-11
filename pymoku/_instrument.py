@@ -406,6 +406,17 @@ class MokuInstrument(object):
 
 		return [bool(r & RELAY_LOWZ), bool(r & RELAY_LOWG), not bool(r & RELAY_DC)]
 
+	def set_pause(self, pause):
+		"""
+		Pauses or unpauses the instrument's data output.
+
+		Depending on the instrument, the pause may not take effect until the current operation
+		has completed (e.g. the currently-filling Oscilloscope frame has completely filled).
+		:type pause: bool
+		:param pause: Paused
+		"""
+		self.pause = pause
+
 _instr_reg_handlers = {
 	# Name : Register, set-transform (user to register), get-transform (register to user); either None is W/R-only
 	'instr_id':			(REG_ID1, 		None, 						from_reg_unsigned(0, 8)),

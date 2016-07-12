@@ -1,4 +1,7 @@
 
+# Pull in Python 3 string object on Python 2.
+from builtins import str
+
 import select, socket, struct, sys
 import os, os.path
 import logging, time, threading
@@ -195,7 +198,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		ctx = zmq.Context.instance()
 		self._dlskt = ctx.socket(zmq.SUB)
 		self._dlskt.connect("tcp://%s:27186" % self._moku._ip)
-		self._dlskt.setsockopt_string(zmq.SUBSCRIBE, unicode(tag))
+		self._dlskt.setsockopt_string(zmq.SUBSCRIBE, str(tag))
 
 		self._strparser = dataparser.LIDataParser(self.ch1, self.ch2, self.binstr, self.procstr, self.fmtstr, self.hdrstr, self.timestep, time.time(), [0] * self.nch)
 

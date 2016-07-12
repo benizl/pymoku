@@ -175,7 +175,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		""" Get a :any:`DataFrame` from the internal frame buffer"""
 		try:
 			# Dodgy hack, infinite timeout gets translated in to just an exceedingly long one
-			endtime = time.time() + (timeout or sys.maxint)
+			endtime = time.time() + (timeout or sys.maxsize)
 			while self._running:
 				frame = self._queue.get(block=True, timeout=timeout)
 				# Should really just wait for the new stateid to propagte through, but

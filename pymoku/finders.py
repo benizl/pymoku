@@ -1,5 +1,6 @@
 
-import pybonjour, select, socket, time
+import select, socket, time
+from . import pybonjour
 
 class BonjourFinder(object):
 	def __init__(self):

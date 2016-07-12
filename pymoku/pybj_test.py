@@ -1,6 +1,6 @@
 import select, socket
 import sys
-import pybonjour
+from . import pybonjour
 
 
 regtype  = sys.argv[1]

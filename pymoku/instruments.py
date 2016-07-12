@@ -1,11 +1,11 @@
 import sys
 
-import _instrument
-import _oscilloscope
-import _siggen
-import _phasemeter
-import _specan
-import _frame_instrument
+from . import _instrument
+from . import _oscilloscope
+from . import _siggen
+from . import _phasemeter
+from . import _specan
+from . import _frame_instrument
 
 ''' Preferred import point. Aggregates the separate instruments and helper classes
     to flatten the import heirarchy (e.g. pymoku.instruments.Oscilloscope rather

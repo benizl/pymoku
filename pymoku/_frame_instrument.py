@@ -4,10 +4,10 @@ import os, os.path
 import logging, time, threading
 import zmq
 
-from Queue import Queue, Empty
+from queue import Queue, Empty
 from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException, NoDataException, dataparser
 
-import _instrument
+from . import _instrument
 
 log = logging.getLogger(__name__)
 

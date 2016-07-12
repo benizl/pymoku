@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+
+# Python 3 str object for Python 2
+from builtins import str
+
 import os, time, datetime, math
 import logging
 import re, struct
@@ -74,11 +78,11 @@ class LIDataFileReader(object):
 		#: Time at which the recording was started (seconds since Jan 1 1970)
 		self.starttime = 0
 
-		if f.read(2) != 'LI':
+		if f.read(2) != b'LI':
 			raise InvalidFileException("Bad Magic")
 
 		v = f.read(1)
-		if v != '1':
+		if v != b'1':
 			raise InvalidFileException("Unknown File Version %s" % v)
 
 		pkthdr_len = struct.unpack("<H", f.read(2))[0]
@@ -102,16 +106,16 @@ class LIDataFileReader(object):
 		log.debug("CAL: %s", self.cal)
 
 		reclen = struct.unpack("<H", f.read(2))[0]
-		self.rec = f.read(reclen); log.debug("Rec %s (%d)", self.rec, reclen)
+		self.rec = f.read(reclen).decode('ascii'); log.debug("Rec %s (%d)", self.rec, reclen)
 
 		for i in range(self.nch):
 			proclen = struct.unpack("<H", f.read(2))[0]
-			self.proc.append(f.read(proclen));
+			self.proc.append(f.read(proclen).decode('ascii'));
 
 		fmtlen = struct.unpack("<H", f.read(2))[0]
-		self.fmt = f.read(fmtlen); log.debug("Fmt %s (%d)", self.fmt, fmtlen)
+		self.fmt = f.read(fmtlen).decode('ascii'); log.debug("Fmt %s (%d)", self.fmt, fmtlen)
 		hdrlen = struct.unpack("<H", f.read(2))[0]
-		self.hdr = f.read(hdrlen); log.debug("Hdr %s (%d)", self.hdr, hdrlen)
+		self.hdr = f.read(hdrlen).decode('ascii'); log.debug("Hdr %s (%d)", self.hdr, hdrlen)
 
 		# Assume the last line of the CSV header block is the column headers
 		try:
@@ -249,7 +253,7 @@ class LIDataFileWriter(object):
 		if (chs & 0x02):
 			nch +=1
 		
-		self.file.write('LI1')
+		self.file.write(b'LI1')
 		hdr = struct.pack("<BBHdQ", chs, instr, instrv, timestep, starttime)
 
 		for i in range(nch):
@@ -297,7 +301,7 @@ class LIDataParser(object):
 	def record_length(binstr):
 		""" Returns the bit length of the records decribed by the given binary description string """
 		b = LIDataParser._parse_binstr(binstr)
-		return sum(zip(*b)[1])
+		return sum(list(zip(*b))[1])
 
 	@staticmethod
 	def _parse_binstr(binstr):
@@ -481,9 +485,6 @@ class LIDataParser(object):
 		# byte level here, then reverse them again at the field level below to
 		# correctly parse the fields LE.
 		self.dcache[chidx] += ''.join([ "{:08b}".format(d)[::-1] for d in bytearray(data) ])
-
-		#print ch
-		#print ''.join([ "{:02X}".format(ord(x)) for x in data])
 
 		while True:
 			if not len(self._currfmt[chidx]):

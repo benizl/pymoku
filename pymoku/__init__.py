@@ -440,7 +440,7 @@ class Moku(object):
 
 	def _fs_receive_generic(self, action):
 		reply = self._conn.recv()
-		hdr, l = struct.unpack("<BQ", reply[1:9])
+		hdr, l = struct.unpack("<BQ", reply[:9])
 		pkt = reply[9:]
 
 		if l != len(pkt):

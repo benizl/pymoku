@@ -346,7 +346,7 @@ class LIDataParser(object):
 			raise InvalidFormatException("Can't use empty binary record string")
 
 		self.binfmt = LIDataParser._parse_binstr(binstr)
-		self.recordlen = sum(zip(*self.binfmt)[1])
+		self.recordlen = sum(list(zip(*self.binfmt))[1])
 		self.procstr = procstr
 
 		self.nch = 0

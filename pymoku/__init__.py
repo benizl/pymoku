@@ -554,11 +554,6 @@ class Moku(object):
 		"""
 		import zlib
 		log.debug("Loading bitstream %s", path)
-
-		flist = self._fs_list('b')
-
-		log.debug("File already exists on target, overwriting.")
-
 		rname = self._send_file('b', path)
 
 		log.debug("Verifying upload")

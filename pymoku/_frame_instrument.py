@@ -536,6 +536,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if self._dlskt in zmq.select([self._dlskt], [], [], timeout)[0]:
 			hdr, data = self._dlskt.recv_multipart()
 
+			hdr = hdr.decode('ascii')
 			tag, ch, start, coeff = hdr.split('|')
 			ch = int(ch)
 			start = int(start)

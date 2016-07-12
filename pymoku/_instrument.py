@@ -22,8 +22,8 @@ REG_STRCTL1	= 12
 REG_AINCTL	= 13
 # 14 was Decimation before that moved in to instrument space
 REG_PRETRIG	= 15
-REG_CAL1, REG_CAL2, REG_CAL3, REG_CAL4, REG_CAL5, REG_CAL6, REG_CAL7, REG_CAL8 = range(16, 24)
-REG_CAL9, REG_CAL10 = range(24, 26)
+REG_CAL1, REG_CAL2, REG_CAL3, REG_CAL4, REG_CAL5, REG_CAL6, REG_CAL7, REG_CAL8 = list(range(16, 24))
+REG_CAL9, REG_CAL10 = list(range(24, 26))
 REG_STATE	= 63
 
 # Common instrument parameters
@@ -338,7 +338,7 @@ class MokuInstrument(object):
 		modified states through their attributes or accessors
 		"""
 		if self._moku is None: raise NotDeployedException()
-		self._remoteregs = zip(*self._moku._read_regs(range(128)))[1]
+		self._remoteregs = [ val for reg, val in self._moku._read_regs(list(range(128)))]
 
 	def dump_remote_regs(self):
 		"""
@@ -351,7 +351,7 @@ class MokuInstrument(object):
 		Unlike :any:`sync_registers`, no local state is updated to reflect these register values
 		and they are not made available through attributes or accessors.
 		"""
-		return self._moku._read_regs(range(128))
+		return self._moku._read_regs(list(range(128)))
 
 	def set_running(self, state):
 		"""

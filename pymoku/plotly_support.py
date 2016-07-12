@@ -6,7 +6,7 @@ from pymoku import InvalidOperationException
 
 def stream_init(moku, uname, api_key, str_id1, str_id2, npoints=100, mode='lines', line={}):
 
-	line = ';'.join([ '='.join(i) for i in line.items()])
+	line = ';'.join([ '='.join(i) for i in list(line.items())])
 
 	settings = [
 		('plotly.uname', uname),
@@ -36,7 +36,7 @@ def plot_frame(dataframe, uname=None, api_key=None, mode='lines', line={}):
 
 	c1 = dataframe.ch1
 	c2 = dataframe.ch2
-	x = range(len(c1))
+	x = list(range(len(c1)))
 
 	t1 = Scatter(x=x, y=c1, mode=mode, line=line)
 	t2 = Scatter(x=x, y=c2, mode=mode, line=line)

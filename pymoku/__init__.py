@@ -626,7 +626,7 @@ class Moku(object):
 		"""
 		:return: Available colours for the under-Moku "UFO" ring lights"""
 		cols = self._get_property_section('colourtable')
-		self.led_colours = [ x.split('.')[1] for x in zip(*cols)[0] ]
+		self.led_colours = [ x.split('.')[1] for x in list(zip(*cols))[0] ]
 		return self.led_colours
 
 	def is_active(self):

@@ -484,6 +484,10 @@ class Moku(object):
 
 		self._set_timeout(short=True)
 
+		# Once all chunks have been uploaded, finalise the file on the
+		# device making it available for use
+		#self._fs_finalise_fromlocal(mp, localname)
+
 		return remotename
 
 	def _receive_file(self, mp, fname, l):
@@ -556,6 +560,31 @@ class Moku(object):
 		t, f = struct.unpack("<QQ", self._fs_receive_generic(6))
 
 		return t, f
+
+
+	def _fs_finalise(self, mp, fname, fsize):
+		fname = mp + ":" + fname
+		pkt = bytearray([len(fname)])
+		pkt += fname.encode('ascii')
+		pkt += struct.pack('<Q', fsize)
+
+		self._fs_send_generic(7, pkt)
+
+		reply = self._fs_receive_generic(7)
+
+
+	def _fs_finalise_fromlocal(self, mp, localname):
+		fsize = os.path.getsize(localname)
+		remotename = os.path.basename(localname)
+
+		return self._fs_finalise(mp, remotename, fsize)
+
+
+	def delete_bitstream(self, path):
+		self._fs_finalise('b', path, 0)
+
+	def delete_file(self, mp, path):
+		self._fs_finalise(mp, path, 0)
 
 	def load_bitstream(self, path):
 		"""

@@ -1,6 +1,6 @@
 import select, socket
 import sys
-from . import pybonjour
+from pymoku import pybonjour
 
 
 regtype  = sys.argv[1]
@@ -12,7 +12,7 @@ resolved = []
 def query_record_callback(sdRef, flags, interfaceIndex, errorCode, fullname,
                           rrtype, rrclass, rdata, ttl):
     if errorCode == pybonjour.kDNSServiceErr_NoError:
-        print('  IP         =', socket.inet_ntoa(rdata))
+        print(('  IP         =', socket.inet_ntoa(rdata)))
         queried.append(True)
 
 
@@ -22,9 +22,9 @@ def resolve_callback(sdRef, flags, interfaceIndex, errorCode, fullname,
         return
 
     print('Resolved service:')
-    print('  fullname   =', fullname)
-    print('  hosttarget =', hosttarget)
-    print('  port       =', port)
+    print(('  fullname   =', fullname))
+    print(('  hosttarget =', hosttarget))
+    print(('  port       =', port))
 
     query_sdRef = \
         pybonjour.DNSServiceQueryRecord(interfaceIndex = interfaceIndex,

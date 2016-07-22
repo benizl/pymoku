@@ -53,18 +53,17 @@ class PhaseMeter_SignalGenerator(MokuInstrument):
 		super(PhaseMeter_SignalGenerator, self).__init__()
 		self._register_accessors(_pm_siggen_reg_hdl)
 
-	def set_defaults(self):
-		# Register values
-		self.pm_out1_frequency = 0
-		self.pm_out2_frequency = 0
-		self.pm_out1_amplitude = 0
-		self.pm_out2_amplitude = 0
-
 		# Local/cached values
 		self.pm_out1_enable = False
 		self.pm_out2_enable = False
 		self._pm_out1_amplitude = 0
 		self._pm_out2_amplitude = 0
+
+	def set_defaults(self):
+		self.synth_sinewave(1,0,0)
+		self.synth_sinewave(2,0,0)
+		self.enable_output(1,False)
+		self.enable_output(2,False)
 
 		self.set_frontend(1, fiftyr=True, atten=False, ac=True)
 		self.set_frontend(2, fiftyr=True, atten=False, ac=True)

@@ -9,7 +9,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.DEBUG)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku.get_by_name('example')
+m = Moku.get_by_name('Moku')
 
 i = m.discover_instrument()
 
@@ -19,10 +19,6 @@ if i is None or i.type != 'oscilloscope':
 	m.attach_instrument(i)
 else:
 	print "Attached to existing Oscilloscope"
-
-i.set_defaults()
-i.set_buffer_length(4)
-i.commit()
 
 line1, = plt.plot([])
 line2, = plt.plot([])

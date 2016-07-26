@@ -64,10 +64,6 @@ try:
 	# END Instrument Configuration
 	#################################
 
-	# It's recommended to set default values for the instrument, otherwise the user
-	# has to go ahead and explicitly set up many values themselves.
-	i.set_defaults()
-
 	# Set the initial phase-lock loop frequency for both channels
 	i.set_initfreq(1, ch1_freq)
 	i.set_initfreq(2, ch2_freq)

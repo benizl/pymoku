@@ -27,9 +27,6 @@ else:
 	print "Attached to existing Phasemeter"
 
 try:
-	# It's recommended to set default values for the instrument, otherwise the user
-	# has to go ahead and explicitly set up many values themselves.
-	i.set_defaults()
 
 	# Set the initial phase-lock loop frequency for both channels
 	# Channel 1: 6 MHz

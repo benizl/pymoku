@@ -56,10 +56,6 @@ try:
 	# END Configuration parameters
 	######################################################
 
-	# It's recommended to set default values for the instrument, otherwise the user
-	# has to go ahead and explicitly set up many values themselves.
-	i.set_defaults()
-
 	# The sample rate must be set <=200hz to avoid data loss so we set it to 100Hz
 	i.set_samplerate(samplerate)
 

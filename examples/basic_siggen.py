@@ -20,8 +20,6 @@ if i is None or i.type != 'signal_generator':
 else:
 	print "Attached to existing Signal Generator"
 
-i.set_defaults()
-
 try:
 	i.synth_sinewave(1, 1.0, 1000000)
 	i.synth_squarewave(2, 1.0, 2000000, risetime=0.1, falltime=0.1, duty=0.3)

@@ -335,6 +335,24 @@ class Oscilloscope(_frame_instrument.FrameBasedInstrument, _siggen.SignalGenerat
 		self.hf_reject = hf_reject
 		self.trig_mode = mode
 
+	def set_source(self, ch, source):
+		""" Sets the source of the channel data to either the ADC input or internally looped-back DAC output.
+
+		This feature allows the user to preview the Signal Generator outputs.
+
+		:type ch: int
+		:param ch: Channel Number
+
+		:type source: OSC_SOURCE_ADC, OSC_SOURCE_DAC
+		:param source: Data source
+		"""
+		if ch == 1:
+			self.source_ch1 = source
+		elif ch == 2:
+			self.source_ch2 = source
+		else:
+			raise ValueOutOfRangeException("Incorrect channel number %d", ch)
+
 	def set_defaults(self):
 		""" Reset the Oscilloscope to sane defaults. """
 		super(Oscilloscope, self).set_defaults()

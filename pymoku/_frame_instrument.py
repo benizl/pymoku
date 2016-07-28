@@ -4,6 +4,7 @@ import os, os.path
 import logging, time, threading
 import zmq
 
+from collections import deque
 from Queue import Queue, Empty
 from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException, NoDataException, dataparser
 
@@ -57,6 +58,12 @@ class FrameQueue(Queue):
 					raise
 			else:
 				return item
+
+	# The default _init for a Queue doesn't actually bound the deque, relying on the
+	# put function to bound.
+	def _init(self, maxsize):
+		self.queue = deque(maxlen=maxsize)
+
 
 class DataFrame(object):
 	"""

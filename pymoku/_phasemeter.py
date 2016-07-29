@@ -47,6 +47,9 @@ _PM_UPDATE_RATE = 1e6
 _PM_SG_AMPSCALE = 2**16 / 4.0
 _PM_SG_FREQSCALE = _PM_FREQSCALE
 
+PM_LOGRATE_FAST = 200
+PM_LOGRATE_SLOW = 15
+
 class PhaseMeter_SignalGenerator(MokuInstrument):
 
 	def __init__(self):
@@ -134,10 +137,10 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		self.type = "phasemeter"
 		self.logname = "MokuPhaseMeterData"
 
-		self.binstr = "<p32,0xAAAAAAAA:p32,0x55555555:s32:s32:s48:s48:s32"
-		self.procstr = ["*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0)),
-						"*C*{:.10e} : *C*{:.10e} : *{:.10e} : *{:.10e} : ".format(self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0), -self._intToHertz(1.0), self._intToCycles(1.0))]
-
+		self.binstr = "<p32,0xAAAAAAAA:u48:u48:s15:p1,0:s48:s32:s32"
+		self.procstr = ["*{:.16e} : *{:.16e} : : *{:.16e} : *C*{:.16e} : *C*{:.16e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0)),
+						"*{:.16e} : *{:.16e} : : *{:.16e} : *C*{:.16e} : *C*{:.16e} ".format(self._intToHertz(1.0), self._intToHertz(1.0),  self._intToCycles(1.0), self._intToVolts(1.0,1.0), self._intToVolts(1.0,1.0))]
+		print self.procstr
 
 	def _intToCycles(self, rawValue):
 	    return 2.0 * pow(2.0, 16.0) * rawValue / pow(2.0, 48.0) * _PM_ADC_SMPS / _PM_UPDATE_RATE
@@ -164,10 +167,16 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 		This interface is most useful for datalogging and similar aquisition where one will not be looking
 		at data frames.
 
-		:type samplerate: float; *0 < samplerate < 200Hz*
-		:param samplerate: Target samples per second. Will get rounded to the nearest allowable unit.
+		:type samplerate: {PM_LOGRATE_SLOW, PM_LOGRATE_FAST}
+		:param samplerate: Choose between ~15Hz or ~120Hz
 		"""
-		self.output_decimation = _PM_UPDATE_RATE / min(max(1,samplerate),200)
+		new_samplerate = _PM_UPDATE_RATE/min(max(1,samplerate),200)
+		shift = min(math.ceil(math.log(new_samplerate,2)),16)
+		self.output_decimation = 2**shift
+		self.output_shift = shift
+
+		print "Output decimation: %f, Shift: %f, Samplerate: %f" % (self.output_decimation, shift, _PM_UPDATE_RATE/self.output_decimation)
+
 
 	def get_samplerate(self):
 		"""
@@ -238,7 +247,7 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 
 		for i,c in enumerate(chs):
 			if c:
-				hdr += ", Frequency offset {i} (Hz), Phase {i} (cyc), I {i} (V), Q {i} (V)".format(i=i+1)
+				hdr += ", Absolute Frequency {i}, Phase {i} (cyc), I {i} (V), Q {i} (V), Seed Frequency {i} (Hz), Ctr {i}".format(i=i+1)
 
 		hdr += "\r\n"
 
@@ -247,9 +256,9 @@ class PhaseMeter(_frame_instrument.FrameBasedInstrument, PhaseMeter_SignalGenera
 	def get_fmtstr(self, ch1, ch2):
 		fmtstr = "{t:.10e}"
 		if ch1:
-			fmtstr += ",{ch1[2]:.10e}, {ch1[3]:.10e}, {ch1[0]:.10e}, {ch1[1]:.10e}"
+			fmtstr += ", {ch1[1]:.16e}, {ch1[3]:.16e}, {ch1[4]:.16e}, {ch1[5]:.16e}, {ch1[0]:.16e}, {ch1[2]:.16e}"
 		if ch2:
-			fmtstr += ",{ch2[2]:.10e}, {ch2[3]:.10e}, {ch2[0]:.10e}, {ch2[1]:.10e}"
+			fmtstr += ", {ch1[1]:.16e}, {ch1[3]:.16e}, {ch1[4]:.16e}, {ch1[5]:.16e}, {ch1[0]:.16e}, {ch1[2]:.16e}"
 		fmtstr += "\r\n"
 		return fmtstr
 

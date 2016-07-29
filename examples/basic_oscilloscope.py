@@ -14,11 +14,11 @@ m = Moku.get_by_name('Moku')
 i = m.discover_instrument()
 
 if i is None or i.type != 'oscilloscope':
-	print "No or wrong instrument deployed"
+	print("No or wrong instrument deployed")
 	i = Oscilloscope()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Oscilloscope"
+	print("Attached to existing Oscilloscope")
 
 line1, = plt.plot([])
 line2, = plt.plot([])
@@ -35,8 +35,8 @@ try:
 		plt.pause(0.001)
 		line1.set_ydata(frame.ch1)
 		line2.set_ydata(frame.ch2)
-		line1.set_xdata(range(1024))
-		line2.set_xdata(range(1024))
+		line1.set_xdata(list(range(1024)))
+		line2.set_xdata(list(range(1024)))
 
 		plt.draw()
 finally:

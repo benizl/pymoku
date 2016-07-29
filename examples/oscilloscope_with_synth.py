@@ -26,11 +26,11 @@ m = Moku.get_by_name('example')
 i = m.discover_instrument()
 
 if i is None or i.type != 'oscilloscope':
-	print "No or wrong instrument deployed"
+	print("No or wrong instrument deployed")
 	i = Oscilloscope()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Oscilloscope"
+	print("Attached to existing Oscilloscope")
 
 # Channe 1: 1Vp-p Square Wave, 1Hz, 40% duty cycle with 10% slew rate limit on both edges
 i.synth_squarewave(1, 1.0, 1, risetime=0.1, falltime=0.1, duty=0.4)
@@ -79,8 +79,8 @@ try:
 			time.sleep(0.1)
 			continue
 
-		line1.set_data(range(len(frame.ch1)), frame.ch1)
-		line2.set_data(range(len(frame.ch2)), frame.ch2)
+		line1.set_data(list(range(len(frame.ch1))), frame.ch1)
+		line2.set_data(list(range(len(frame.ch2))), frame.ch2)
 
 		plt.pause(0.0001)
 
@@ -94,7 +94,7 @@ try:
 		# Print FPS values against the current requested value (which is rounded to the
 		# nearest achievable value to the above).
 		if time.time() - last >= 1:
-			print frames, i.framerate
+			print(frames, i.framerate)
 			frames = 0
 			last = time.time()
 finally:

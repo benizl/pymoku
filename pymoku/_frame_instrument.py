@@ -1,14 +1,18 @@
 
+# Pull in Python 3 string object on Python 2.
+from builtins import str
+
 import select, socket, struct, sys
 import os, os.path
 import logging, time, threading
 import zmq
 
 from collections import deque
-from Queue import Queue, Empty
+from queue import Queue, Empty
+
 from pymoku import Moku, FrameTimeout, NotDeployedException, InvalidOperationException, NoDataException, dataparser
 
-import _instrument
+from . import _instrument
 
 log = logging.getLogger(__name__)
 
@@ -182,7 +186,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		""" Get a :any:`DataFrame` from the internal frame buffer"""
 		try:
 			# Dodgy hack, infinite timeout gets translated in to just an exceedingly long one
-			endtime = time.time() + (timeout or sys.maxint)
+			endtime = time.time() + (timeout or sys.maxsize)
 			while self._running:
 				frame = self._queue.get(block=True, timeout=timeout)
 				# Should really just wait for the new stateid to propagte through, but
@@ -202,7 +206,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		ctx = zmq.Context.instance()
 		self._dlskt = ctx.socket(zmq.SUB)
 		self._dlskt.connect("tcp://%s:27186" % self._moku._ip)
-		self._dlskt.setsockopt_string(zmq.SUBSCRIBE, unicode(tag))
+		self._dlskt.setsockopt_string(zmq.SUBSCRIBE, str(tag))
 
 		self._strparser = dataparser.LIDataParser(self.ch1, self.ch2, self.binstr, self.procstr, self.fmtstr, self.hdrstr, self.timestep, time.time(), [0] * self.nch)
 
@@ -540,6 +544,7 @@ class FrameBasedInstrument(_instrument.MokuInstrument):
 		if self._dlskt in zmq.select([self._dlskt], [], [], timeout)[0]:
 			hdr, data = self._dlskt.recv_multipart()
 
+			hdr = hdr.decode('ascii')
 			tag, ch, start, coeff = hdr.split('|')
 			ch = int(ch)
 			start = int(start)

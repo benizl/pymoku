@@ -11,11 +11,11 @@ m = Moku.get_by_name('example')
 i = m.discover_instrument()
 
 if i is None or i.type != 'oscilloscope':
-	print "No or wrong instrument deployed"
+	print("No or wrong instrument deployed")
 	i = Oscilloscope()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Oscilloscope"
+	print("Attached to existing Oscilloscope")
 
 try:
 	# In this case, we set the underlying oscilloscope in to Roll mode then wait a bit to
@@ -36,12 +36,12 @@ try:
 	while True:
 		ch, idx, d = i.datalogger_get_samples(timeout=5)
 
-		print "Received samples %d to %d from channel %d" % (idx, idx + len(d), ch)
+		print("Received samples %d to %d from channel %d" % (idx, idx + len(d), ch))
 except NoDataException as e:
 	# This will be raised if we try and get samples but the session has finished.
-	print e
+	print(e)
 except Exception as e:
-	print traceback.format_exc()
+	print(traceback.format_exc())
 finally:
 	i.datalogger_stop()
 	m.close()

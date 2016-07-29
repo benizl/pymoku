@@ -7,9 +7,9 @@ import zmq
 log = logging.getLogger(__name__)
 
 try:
-	from finders import BonjourFinder
-except (ImportError, OSError):
-	log.warning("Can't import the Bonjour libraries, I won't be able to automatically detect Mokus")
+	from .finders import BonjourFinder
+except Exception as e:
+	log.warning("Can't import the Bonjour libraries, I won't be able to automatically detect Mokus ({:s})".format(str(e)))
 
 class MokuException(Exception):	"""Base class for other Exceptions""";	pass
 class MokuNotFound(MokuException): """Can't find Moku. Raised from discovery factory functions."""; pass
@@ -176,26 +176,30 @@ class Moku(object):
 
 
 	def _read_regs(self, commands):
-		command_data = ''.join([struct.pack('<B', x) for x in commands])
-		packet_data = chr(0x47) + chr(0x00) + chr(len(commands)) + command_data
+		packet_data = bytearray([0x47, 0x00, len(commands)])
+		packet_data += b''.join([struct.pack('<B', x) for x in commands])
 
 		self._conn.send(packet_data)
 		ack = self._conn.recv()
 
-		if ord(ack[0]) != 0x47 or ord(ack[1]) != 0x00 or ord(ack[2]) != len(commands):
+		t, err, l = struct.unpack('<BBB', ack[:3])
+
+		if t != 0x47 or l != len(commands) or err:
 			raise NetworkError()
 
 		return [struct.unpack('<BI', ack[x:x + 5]) for x in range(3, len(commands) * 5, 5)]
 
 
 	def _write_regs(self, commands):
-		command_data = ''.join([struct.pack('<BI', x[0] + 0x80, x[1]) for x in commands])
-		packet_data = chr(0x47) + chr(0x00) + chr(len(commands)) + command_data
+		packet_data = bytearray([0x47, 0x00, len(commands)])
+		packet_data += b''.join([struct.pack('<BI', x[0] + 0x80, x[1]) for x in commands])
 
 		self._conn.send(packet_data)
 		ack = self._conn.recv()
 
-		if ord(ack[0]) != 0x47 or ord(ack[1]) != 0x00 or ord(ack[2]) != 0x00:
+		t, err, l = struct.unpack('<BBB', ack[:3])
+
+		if t != 0x47 or err or l:
 			raise NetworkError()
 
 
@@ -207,13 +211,15 @@ class Moku(object):
 		# seconds on the device. Set an appropriately long timeout for this case.
 		self._set_timeout(short=False)
 
-		self._conn.send(chr(0x43) + chr(self._instrument.id) + chr(0x00))
+		self._conn.send(bytearray([0x43, self._instrument.id, 0x00]))
 		ack = self._conn.recv()
 
 		self._set_timeout(short=True)
 
-		if ord(ack[0]) != 0x43 or ord(ack[1]) != 0x00:
-			raise DeployException("Deploy Error %d" % ord(ack[1]))
+		t, err = struct.unpack('<BB', ack[:2])
+
+		if t != 0x43 or err:
+			raise DeployException("Deploy Error %d" % err)
 
 		self._set_property_single('ipad.name', socket.gethostname())
 
@@ -225,13 +231,12 @@ class Moku(object):
 
 		if len(properties) > 255:
 			raise InvalidOperationException("Properties request too long (%d)" % len(properties))
-		pkt = struct.pack("<BBB", 0x46, self._seq, len(properties))
+		pkt = bytearray([0x46, self._seq, len(properties)])
 
 		for p in properties:
-			pkt += chr(1) # Read action
-			pkt += chr(len(p))
-			pkt += p
-			pkt += chr(0) # No data for reads
+			pkt += bytearray([1, len(p)]) # Read action
+			pkt += p.encode('ascii')
+			pkt += bytearray([0]) # No data for reads
 
 		self._conn.send(pkt)
 		reply = self._conn.recv()
@@ -246,10 +251,10 @@ class Moku(object):
 
 		p, d = '', ''
 		for n in range(nr):
-			plen = ord(reply[0]); reply = reply[1:]
-			p = reply[:plen]; reply = reply[plen:]
-			dlen = ord(reply[0]); reply = reply[1:]
-			d = reply[:dlen]; reply = reply[dlen:]
+			plen = ord(reply[:1]); reply = reply[1:]
+			p = reply[:plen].decode('ascii'); reply = reply[plen:]
+			dlen = ord(reply[:1]); reply = reply[1:]
+			d = reply[:dlen].decode('ascii'); reply = reply[dlen:]
 
 			if stat == 0:
 				ret.append((p, d))
@@ -268,12 +273,9 @@ class Moku(object):
 	def _get_property_section(self, section):
 		ret = []
 
-		pkt = struct.pack("<BBB", 0x46, self._seq, 1)
-
-		pkt += chr(3) # Multi-read
-		pkt += chr(len(section))
-		pkt += section
-		pkt += chr(0) # No data for reads
+		pkt = struct.pack("<BBBBB", 0x46, self._seq, 1, 3, len(section))
+		pkt += section.encode('ascii')
+		pkt += bytearray([0]) # No data for reads
 
 		self._conn.send(pkt)
 		reply = self._conn.recv()
@@ -287,10 +289,10 @@ class Moku(object):
 
 		p, d = '',''
 		for n in range(nr):
-			plen = ord(reply[0]); reply = reply[1:]
-			p = reply[:plen]; reply = reply[plen:]
-			dlen = ord(reply[0]); reply = reply[1:]
-			d = reply[:dlen]; reply = reply[dlen:]
+			plen = ord(reply[:1]); reply = reply[1:]
+			p = reply[:plen].decode('ascii'); reply = reply[plen:]
+			dlen = ord(reply[:1]); reply = reply[1:]
+			d = reply[:dlen].decode('ascii'); reply = reply[dlen:]
 
 			if stat == 0:
 				ret.append((p, d))
@@ -315,11 +317,10 @@ class Moku(object):
 		pkt = struct.pack("<BBB", 0x46, self._seq, len(properties))
 
 		for p, d in properties:
-			pkt += chr(2) # Write action
-			pkt += chr(len(p))
-			pkt += p
-			pkt += chr(len(d))
-			pkt += d
+			pkt += bytearray([2, len(p)])
+			pkt += p.encode('ascii')
+			pkt += bytearray([len(d)])
+			pkt += d.encode('ascii')
 
 		self._conn.send(pkt)
 		reply = self._conn.recv()
@@ -332,10 +333,10 @@ class Moku(object):
 		self._seq += 1
 
 		for n in range(nr):
-			plen = ord(reply[0]); reply = reply[1:]
-			p = reply[:plen]; reply = reply[plen:]
-			dlen = ord(reply[0]); reply = reply[1:]
-			d = reply[:dlen]; reply = reply[dlen:]
+			plen = ord(reply[:1]); reply = reply[1:]
+			p = reply[:plen].decode('ascii'); reply = reply[plen:]
+			dlen = ord(reply[:1]); reply = reply[1:]
+			d = reply[:dlen].decode('ascii'); reply = reply[dlen:]
 
 			if stat == 0:
 				# Writes have the new value echoed back
@@ -372,12 +373,13 @@ class Moku(object):
 		flags |= int(ch1)
 
 		pkt = struct.pack("<BBB", 0x53, 0, 1) #TODO: Proper sequence number
-		pkt += tag + mp
+		pkt += tag.encode('ascii')
+		pkt += mp.encode('ascii')
 		pkt += struct.pack("<IIBd", start, end, flags, timestep)
 		pkt += struct.pack("<H", len(fname))
-		pkt += fname
+		pkt += fname.encode('ascii')
 		pkt += struct.pack("<H", len(binstr))
-		pkt += binstr
+		pkt += binstr.encode('ascii')
 
 		# Build up a single procstring with "|" as a delimiter
 		# TODO: Allow empty procstrings
@@ -389,12 +391,12 @@ class Moku(object):
 				procstr_pkt += procstr[i]
 
 		pkt += struct.pack("<H", len(procstr_pkt))
-		pkt += procstr_pkt
+		pkt += procstr_pkt.encode('ascii')
 
 		pkt += struct.pack("<H", len(fmtstr))
-		pkt += fmtstr
+		pkt += fmtstr.encode('ascii')
 		pkt += struct.pack("<H", len(hdrstr))
-		pkt += hdrstr
+		pkt += hdrstr.encode('ascii')
 
 		self._conn.send(pkt)
 		reply = self._conn.recv()
@@ -428,7 +430,7 @@ class Moku(object):
 		reply = self._conn.recv()
 
 		hdr, seq, ae, stat, bt, trems, treme, flags, fname_len = struct.unpack("<BBBBQiiBH", reply[:23])
-		fname = reply[23:23 + fname_len]
+		fname = reply[23:23 + fname_len].decode('ascii')
 		return stat, bt, trems, treme, fname
 
 	def _fs_send_generic(self, action, data):
@@ -438,8 +440,7 @@ class Moku(object):
 
 	def _fs_receive_generic(self, action):
 		reply = self._conn.recv()
-		hdr = reply[0]
-		l = struct.unpack("<Q", reply[1:9])[0]
+		hdr, l = struct.unpack("<BQ", reply[:9])
 		pkt = reply[9:]
 
 		if l != len(pkt):
@@ -461,7 +462,8 @@ class Moku(object):
 
 		fname = mp + ":" + remotename
 
-		pkt = chr(len(fname)) + fname
+		pkt = bytearray([len(fname)])
+		pkt += fname.encode('ascii')
 		pkt += struct.pack("<QQ", 0, len(data))
 		pkt += data
 
@@ -478,7 +480,8 @@ class Moku(object):
 	def _receive_file(self, mp, fname, l):
 		qfname = mp + ":" + fname
 
-		pkt = chr(len(qfname)) + qfname
+		pkt = bytearray([len(qfname)])
+		pkt += qfname.encode('ascii')
 		pkt += struct.pack("<QQ", 0, l)
 
 		self._set_timeout(short=False)
@@ -495,20 +498,27 @@ class Moku(object):
 
 	def _fs_chk(self, mp, fname):
 		fname = mp + ":" + fname
-		self._fs_send_generic(3, chr(len(fname)) + fname)
+
+		pkt = bytearray([len(fname)])
+		pkt += fname.encode('ascii')
+		self._fs_send_generic(3, pkt)
 
 		return struct.unpack("<I", self._fs_receive_generic(3))[0]
 
 	def _fs_size(self, mp, fname):
 		fname = mp + ":" + fname
-		self._fs_send_generic(4, chr(len(fname)) + fname)
+
+		pkt = bytearray([len(fname)])
+		pkt += fname.encode('ascii')
+		self._fs_send_generic(4, pkt)
 
 		return struct.unpack("<Q", self._fs_receive_generic(4))[0]
 
 	def _fs_list(self, mp, calculate_checksums=False):
 		flags = 1 if calculate_checksums else 0
 
-		data = mp + chr(flags)
+		data = mp.encode('ascii')
+		data += bytearray([flags])
 		self._fs_send_generic(5, data)
 
 		reply = self._fs_receive_generic(5)
@@ -520,14 +530,14 @@ class Moku(object):
 
 		for i in range(n):
 			chk, bl, fl = struct.unpack("<IQB", reply[:13])
-			names.append((reply[13 : fl + 13], chk, bl))
+			names.append((reply[13 : fl + 13].decode('ascii'), chk, bl))
 
 			reply = reply[fl + 13 :]
 
 		return names
 
 	def _fs_free(self, mp):
-		self._fs_send_generic(6, mp)
+		self._fs_send_generic(6, mp.encode('ascii'))
 
 		t, f = struct.unpack("<QQ", self._fs_receive_generic(6))
 
@@ -544,11 +554,6 @@ class Moku(object):
 		"""
 		import zlib
 		log.debug("Loading bitstream %s", path)
-
-		flist = self._fs_list('b')
-
-		log.debug("File already exists on target, overwriting.")
-
 		rname = self._send_file('b', path)
 
 		log.debug("Verifying upload")
@@ -562,7 +567,7 @@ class Moku(object):
 			raise NetworkError("Bitstream upload failed checksum verification.")
 
 	def _trigger_fwload(self):
-		self._conn.send(chr(0x52) + chr(0x01))
+		self._conn.send(bytearray([0x52, 0x01]))
 		hdr, reply = struct.unpack("<BB", self._conn.recv())
 
 		if reply:
@@ -621,7 +626,7 @@ class Moku(object):
 		"""
 		:return: Available colours for the under-Moku "UFO" ring lights"""
 		cols = self._get_property_section('colourtable')
-		self.led_colours = [ x.split('.')[1] for x in zip(*cols)[0] ]
+		self.led_colours = [ x.split('.')[1] for x in list(zip(*cols))[0] ]
 		return self.led_colours
 
 	def is_active(self):

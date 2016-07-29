@@ -2,9 +2,9 @@
 import math
 import logging
 
-from _instrument import *
-import _frame_instrument
-import _siggen
+from ._instrument import *
+from . import _frame_instrument
+from . import _siggen
 
 log = logging.getLogger(__name__)
 

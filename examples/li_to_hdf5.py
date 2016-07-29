@@ -7,7 +7,7 @@ import pymoku.dataparser
 import h5py
 
 if len(sys.argv) != 3:
-	print "Usage: li_to_csv.py infile.li outfile.hd5"
+	print("Usage: li_to_csv.py infile.li outfile.hd5")
 	exit(1)
 
 reader = pymoku.dataparser.LIDataFileReader(sys.argv[1])

@@ -2,10 +2,10 @@
 import math
 import logging
 
-from _instrument import *
-import _instrument
-import _frame_instrument
-import _siggen
+from ._instrument import *
+from . import _instrument
+from . import _frame_instrument
+from . import _siggen
 
 from struct import unpack
 

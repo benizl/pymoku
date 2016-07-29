@@ -20,11 +20,11 @@ m = Moku.get_by_name('example')
 i = m.discover_instrument()
 
 if i is None or i.type != 'phasemeter':
-	print "No or wrong instrument deployed"
+	print("No or wrong instrument deployed")
 	i = PhaseMeter()
 	m.attach_instrument(i)
 else:
-	print "Attached to existing Phasemeter"
+	print("Attached to existing Phasemeter")
 
 try:
 
@@ -57,23 +57,23 @@ try:
 		try:
 			ch, idx, samp = i.datalogger_get_samples(timeout=5)
 		except NoDataException as e:
-			print "Data stream complete"
+			print("Data stream complete")
 			break
 
-		print "Ch: %d, Idx: %d, #Samples: %s" % (ch, idx, len(samp))
+		print("Ch: %d, Idx: %d, #Samples: %s" % (ch, idx, len(samp)))
 
 		for s in samp:
 			# Process the samples here
-			print s
+			print(s)
 
 	# Check if there were any errors
 	e = i.datalogger_error()
 
 	if e:
-		print "Error occured: %s" % e
+		print("Error occured: %s" % e)
 
 	i.datalogger_stop()
 except Exception as e:
-	print e
+	print(e)
 finally:
 	m.close()

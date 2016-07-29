@@ -1,8 +1,8 @@
 import math
 import logging
 
-from _instrument import *
-import _frame_instrument
+from ._instrument import *
+from . import _frame_instrument
 
 from bisect import bisect_right
 

@@ -6,7 +6,7 @@ log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
 if len(sys.argv) != 3:
-	print "Usage %s <ip> <file>" % sys.argv[0]
+	print("Usage %s <ip> <file>" % sys.argv[0])
 	exit(1)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP

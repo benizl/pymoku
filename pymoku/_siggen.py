@@ -4,9 +4,9 @@ import logging
 
 from pymoku import ValueOutOfRangeException
 
-from _instrument import *
-from _instrument import _usgn, _sgn
-import _frame_instrument
+from ._instrument import *
+from ._instrument import _usgn, _sgn
+from . import _frame_instrument
 
 log = logging.getLogger(__name__)
 

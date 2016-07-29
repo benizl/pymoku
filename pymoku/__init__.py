@@ -22,6 +22,10 @@ class NotDeployedException(MokuException): """Tried to perform an action on an I
 class FrameTimeout(MokuException): """No new :any:`DataFrame` arrived within the given timeout"""; pass
 class NoDataException(MokuException): """A request has been made for data but none will be generated """; pass
 
+# Chosen to trade off number of network transactions with memory usage.
+# 4MB is a little larger than a bitstream so those uploads aren't chunked.
+_FS_CHUNK_SIZE = 1024 * 1024 * 4
+
 class Moku(object):
 	"""
 	Core class representing a connection to a physical Moku:Lab unit.
@@ -455,46 +459,60 @@ class Moku(object):
 
 
 	def _send_file(self, mp, localname):
-		with open(localname, 'rb') as f:
-			data = f.read()
-
-		remotename = os.path.basename(localname)
-
-		fname = mp + ":" + remotename
-
-		pkt = bytearray([len(fname)])
-		pkt += fname.encode('ascii')
-		pkt += struct.pack("<QQ", 0, len(data))
-		pkt += data
-
 		self._set_timeout(short=False)
+		i = 0
+		with open(localname, 'rb') as f:
+			while True:
+				data = f.read(_FS_CHUNK_SIZE)
 
-		self._fs_send_generic(2, pkt)
+				if not len(data):
+					break
 
-		self._fs_receive_generic(2)
+				remotename = os.path.basename(localname)
+
+				fname = mp + ":" + remotename
+
+				pkt = bytearray([len(fname)])
+				pkt += fname.encode('ascii')
+				pkt += struct.pack("<QQ", i, len(data))
+				pkt += data
+
+				self._fs_send_generic(2, pkt)
+				self._fs_receive_generic(2)
+
+				i += len(data)
 
 		self._set_timeout(short=True)
+
+		# Once all chunks have been uploaded, finalise the file on the
+		# device making it available for use
+		#self._fs_finalise_fromlocal(mp, localname)
 
 		return remotename
 
 	def _receive_file(self, mp, fname, l):
 		qfname = mp + ":" + fname
-
-		pkt = bytearray([len(qfname)])
-		pkt += qfname.encode('ascii')
-		pkt += struct.pack("<QQ", 0, l)
-
 		self._set_timeout(short=False)
 
-		self._fs_send_generic(1, pkt)
+		i = 0
+		with open(fname, "wb") as f:
+			while i < l:
+				to_transfer = min(l, _FS_CHUNK_SIZE)
+				pkt = bytearray([len(qfname)])
+				pkt += qfname.encode('ascii')
+				pkt += struct.pack("<QQ", i, to_transfer)
 
-		reply = self._fs_receive_generic(1)
-		l = struct.unpack("<Q", reply[:8])[0]
+				self._fs_send_generic(1, pkt)
+
+				reply = self._fs_receive_generic(1)
+				dl = struct.unpack("<Q", reply[:8])[0]
+
+				f.write(reply[8:])
+
+				i += to_transfer
 
 		self._set_timeout(short=True)
 
-		with open(fname, "wb") as f:
-			f.write(reply[8:])
 
 	def _fs_chk(self, mp, fname):
 		fname = mp + ":" + fname
@@ -542,6 +560,31 @@ class Moku(object):
 		t, f = struct.unpack("<QQ", self._fs_receive_generic(6))
 
 		return t, f
+
+
+	def _fs_finalise(self, mp, fname, fsize):
+		fname = mp + ":" + fname
+		pkt = bytearray([len(fname)])
+		pkt += fname.encode('ascii')
+		pkt += struct.pack('<Q', fsize)
+
+		self._fs_send_generic(7, pkt)
+
+		reply = self._fs_receive_generic(7)
+
+
+	def _fs_finalise_fromlocal(self, mp, localname):
+		fsize = os.path.getsize(localname)
+		remotename = os.path.basename(localname)
+
+		return self._fs_finalise(mp, remotename, fsize)
+
+
+	def delete_bitstream(self, path):
+		self._fs_finalise('b', path, 0)
+
+	def delete_file(self, mp, path):
+		self._fs_finalise(mp, path, 0)
 
 	def load_bitstream(self, path):
 		"""

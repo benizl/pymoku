@@ -270,7 +270,7 @@ class LIDataFileWriter(object):
 		self.file.write(struct.pack("<H", len(hdr)))
 		self.file.write(hdr)
 
-	def add_data(self, data, ch):
+	def add_data(self, data, ch, flush=False):
 		""" Append a data chunk to the open file.
 
 		:param data: Bytestring of new data
@@ -278,6 +278,9 @@ class LIDataFileWriter(object):
 		"""
 		self.file.write(struct.pack("<BH", ch, len(data)))
 		self.file.write(data)
+
+		if flush:
+			self.file.flush()
 
 	def finalize(self):
 		"""

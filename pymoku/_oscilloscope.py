@@ -439,8 +439,8 @@ _osc_reg_handlers = {
 	'loopback_mode_ch2':	(REG_OSC_ACTL,	to_reg_unsigned(1, 1, allow_set=[_OSC_LB_CLIP, _OSC_LB_ROUND]),
 											from_reg_unsigned(1, 1)),
 
-	'ain_mode':			(REG_OSC_ACTL,		to_reg_unsigned(2, 16, allow_set=[_OSC_AIN_DDS, _OSC_AIN_DECI]),
-											from_reg_unsigned(2, 16)),
+	'ain_mode':			(REG_OSC_ACTL,		to_reg_unsigned(16, 2, allow_set=[_OSC_AIN_DDS, _OSC_AIN_DECI]),
+											from_reg_unsigned(16, 2)),
 
 	'decimation_rate':	(REG_OSC_DECIMATION,to_reg_unsigned(0, 32),	from_reg_unsigned(0, 32)),
 }

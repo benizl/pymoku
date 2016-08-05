@@ -704,6 +704,17 @@ class Moku(object):
 	set_instrument = attach_instrument
 	""" alias for :any:`attach_instrument`"""
 
+	def detach_instrument(self):
+		"""
+		Detaches the :any:`MokuInstrument` from this Moku.
+
+		This has little effect usually, as a new Instrument can be attached without detaching the old one. This is mostly
+		useful when you want to save network bandwidth between measurements without closing the entire Moku device
+		"""
+		if self._instrument:
+			self._instrument.set_running(False)
+			self._instrument = None
+
 	def get_instrument(self):
 		"""
 		:return:

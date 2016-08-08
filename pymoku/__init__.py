@@ -486,7 +486,7 @@ class Moku(object):
 
 		# Once all chunks have been uploaded, finalise the file on the
 		# device making it available for use
-		#self._fs_finalise_fromlocal(mp, localname)
+		self._fs_finalise_fromlocal(mp, localname)
 
 		return remotename
 

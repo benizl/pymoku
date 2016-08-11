@@ -598,6 +598,9 @@ class Moku(object):
 
 		:raises NetworkError: if the upload fails verification.
 		"""
+		self.load_persistent(path)
+
+	def load_persistent(self, path):
 		import zlib
 		log.debug("Loading bitstream %s", path)
 		rname = self._send_file('b', path)

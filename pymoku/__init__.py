@@ -179,6 +179,11 @@ class Moku(object):
 		self._conn.setsockopt(zmq.RCVTIMEO, 2 * base) # A receive might need to wait on processing
 
 
+	def _get_seq(self):
+		s = self._seq
+		self._seq = (self._seq + 1) % 256
+		return s
+
 	def _read_regs(self, commands):
 		packet_data = bytearray([0x47, 0x00, len(commands)])
 		packet_data += b''.join([struct.pack('<B', x) for x in commands])
@@ -235,7 +240,7 @@ class Moku(object):
 
 		if len(properties) > 255:
 			raise InvalidOperationException("Properties request too long (%d)" % len(properties))
-		pkt = bytearray([0x46, self._seq, len(properties)])
+		pkt = bytearray([0x46, self._get_seq(), len(properties)])
 
 		for p in properties:
 			pkt += bytearray([1, len(p)]) # Read action
@@ -250,8 +255,6 @@ class Moku(object):
 
 		if hdr != 0x46 or seq != self._seq:
 			raise NetworkError("Bad header %d or sequence %d/%d" %(hdr, seq, self._seq))
-
-		self._seq += 1
 
 		p, d = '', ''
 		for n in range(nr):
@@ -277,7 +280,7 @@ class Moku(object):
 	def _get_property_section(self, section):
 		ret = []
 
-		pkt = struct.pack("<BBBBB", 0x46, self._seq, 1, 3, len(section))
+		pkt = struct.pack("<BBBBB", 0x46, self._get_seq(), 1, 3, len(section))
 		pkt += section.encode('ascii')
 		pkt += bytearray([0]) # No data for reads
 
@@ -288,8 +291,6 @@ class Moku(object):
 
 		if hdr != 0x46 or seq != self._seq:
 			raise NetworkError("Bad header %d or sequence %d/%d" %(hdr, seq, self._seq))
-
-		self._seq += 1
 
 		p, d = '',''
 		for n in range(nr):
@@ -318,7 +319,7 @@ class Moku(object):
 		ret = []
 		if len(properties) > 255:
 			raise InvalidOperationException("Properties request too long (%d)" % len(properties))
-		pkt = struct.pack("<BBB", 0x46, self._seq, len(properties))
+		pkt = struct.pack("<BBB", 0x46, self._get_seq(), len(properties))
 
 		for p, d in properties:
 			pkt += bytearray([2, len(p)])
@@ -333,8 +334,6 @@ class Moku(object):
 
 		if hdr != 0x46 or seq != self._seq:
 			raise NetworkError("Bad header %d or sequence %d/%d" %(hdr, seq, self._seq))
-
-		self._seq += 1
 
 		for n in range(nr):
 			plen = ord(reply[:1]); reply = reply[1:]

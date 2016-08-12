@@ -180,9 +180,8 @@ class Moku(object):
 
 
 	def _get_seq(self):
-		s = self._seq
 		self._seq = (self._seq + 1) % 256
-		return s
+		return self._seq
 
 	def _read_regs(self, commands):
 		packet_data = bytearray([0x47, 0x00, len(commands)])

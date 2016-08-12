@@ -82,7 +82,7 @@ class BonjourFinder(object):
 			resolve_sdRef.close()
 
 
-	def find_all(self, protocol_version='6', timeout=5, max_results=0, filter_callback=None):
+	def find_all(self, protocol_version='7', timeout=5, max_results=0, filter_callback=None):
 		self.pversion = protocol_version
 		self.timeout = timeout
 		self.max_results = max_results

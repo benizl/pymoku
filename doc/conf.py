@@ -52,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pymoku'
-copyright = u'2015, Liquid Instruments Pty. Ltd.'
+copyright = u'2016, Liquid Instruments Pty. Ltd.'
 author = u'Liquid Instruments Pty. Ltd.'
 
 # The version info for the project you're documenting, acts as replacement for

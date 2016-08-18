@@ -98,7 +98,7 @@ class Moku(object):
 		:param ip_addr: target IP address
 		:type timeout: float
 		:param timeout: operation timeout
-		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
+		:raises *MokuNotFound*: if no such Moku is found within the timeout"""
 		def _filter(ip):
 			return ip == ip_addr
 
@@ -118,7 +118,7 @@ class Moku(object):
 		:param ip_addr: target serial
 		:type timeout: float
 		:param timeout: operation timeout
-		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
+		:raises *MokuNotFound*: if no such Moku is found within the timeout"""
 		def _filter(ip):
 			m = None
 			try:
@@ -148,7 +148,7 @@ class Moku(object):
 		:param ip_addr: target device name
 		:type timeout: float
 		:param timeout: operation timeout
-		:raises :any:`MokuNotFound`: if no such Moku is found within the timeout"""
+		:raises *MokuNotFound*: if no such Moku is found within the timeout"""
 		def _filter(ip):
 			m = None
 			try:

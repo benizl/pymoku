@@ -2,8 +2,8 @@
 # pymoku example: Phasemeter Binary/CSV datalogger
 #
 # This example provides a log file (binary or CSV) of Phasemeter
-# data samples from Channel 1 and Channel 2. The output log file
-# will be timestamped and saved to the current working directory
+# data samples from Channel 1. The output log file will be
+# timestamped and saved to the current working directory
 #
 # (c) 2016 Liquid Instruments Pty. Ltd.
 #
@@ -15,8 +15,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s::%(message)s')
 logging.getLogger('pymoku').setLevel(logging.INFO)
 
 # Use Moku.get_by_serial() or get_by_name() if you don't know the IP
-m = Moku.get_by_name('example')
-
+m = Moku('192.168.XXX.XXX')
 i = m.discover_instrument()
 
 if i is None or i.type != 'phasemeter':
@@ -31,26 +30,17 @@ try:
 	# BEGIN Configuration parameters
 	# Set logging session and instrument configuration here
 	######################################################
-	# How many samples to log (Hz)
+	# Samplerate (Hz)
 	samplerate = 100
 
 	# Set approximate log duration (sec)
 	duration = 10
 
-	# Start logging after (sec)
-	log_after = 0
-
-	# Which channels to log
-	log_channel1 = True
-	log_channel2 = True
-
 	# Output log file type {'csv,'bin'}
 	filetype = 'csv'
 
-	# Phasemeter initial frequencies per channel (Hz)
+	# Phasemeter initial frequency (Hz)
 	ch1_initial_freq = 10e6
-	ch2_initial_freq = 10e6
-
 
 	######################################################
 	# END Configuration parameters
@@ -59,9 +49,8 @@ try:
 	# The sample rate must be set <=200hz to avoid data loss so we set it to 100Hz
 	i.set_samplerate(samplerate)
 
-	# Set initial frequencies for each channel
+	# Set initial frequency for Channel 1
 	i.set_initfreq(1,ch1_initial_freq)
-	i.set_initfreq(2,ch1_initial_freq)
 
 	# Atomically apply all instrument settings above
 	i.commit()
@@ -71,7 +60,7 @@ try:
 
 	# Begin new datalogging session
 	# Set filetype to be one of {'csv', 'bin'}
-	i.datalogger_start(start=log_after, duration=duration, use_sd=True, ch1=log_channel1, ch2=log_channel2, filetype=filetype)
+	i.datalogger_start(start=0, duration=duration, use_sd=True, ch1=True, ch2=False, filetype=filetype)
 
 	while True:
 		time.sleep(0.5)
